@@ -168,8 +168,8 @@ on conflict do nothing;
 --  ---------------------------------------------------------------------------
 --  Rappel : les fichiers eux-mêmes ne sont pas créés par ce script. Tant qu'ils
 --  ne sont pas déposés dans le compartiment `documents`, sous le nom exact de
---  `storage_path`, la liste s'affichera mais l'ouverture échouera — avec un
---  message, pas un écran vide.
+--  `storage_path`, la liste s'affichera mais l'ouverture répondra « Ce document
+--  n'est plus disponible », dans l'application.
 insert into public.documents (id, titre, description, categorie, storage_path, taille_octets, publie_le) values
   (
     'd1000000-0000-4000-8000-000000000001',

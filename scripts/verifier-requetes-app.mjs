@@ -31,6 +31,12 @@
  * version antérieure le portait en dur, et aurait donc laissé passer un
  * renommage, en sondant un compartiment disparu.
  *
+ * Il vérifie enfin que la formulation qui désigne un objet absent est **la même**
+ * dans `src/services/documents.ts` et ici. Deux copies d'une même vérité, dans
+ * deux fichiers qui ne peuvent pas se lire, finissent par diverger — et cette
+ * divergence-là serait muette : l'écran cesserait simplement de reconnaître
+ * l'absence, et ouvrirait un onglet sur du JSON.
+ *
  * CE QU'IL NE VÉRIFIE PAS — À SAVOIR AVANT DE LIRE UN VERT
  * --------------------------------------------------------
  * Les chemins de SUCCÈS de `voter` et `envoyer_message` ne sont vérifiés nulle
@@ -60,6 +66,20 @@ import { join } from 'node:path';
 
 const DOSSIER_SERVICES = 'src/services';
 const DELAI_MS = 20_000;
+
+/**
+ * La formulation par laquelle Supabase Storage dit qu'un objet n'existe pas.
+ *
+ * Mesurée sur la base réelle : `{"statusCode":"404","error":"not_found",
+ * "message":"Object not found","code":"NoSuchKey"}`, sous un statut HTTP 400.
+ *
+ * `src/services/documents.ts` s'appuie sur la MÊME formulation pour décider
+ * d'afficher « Ce document n'est plus disponible » plutôt que de confier
+ * l'adresse au navigateur et d'ouvrir un onglet sur ce JSON. Ce sont deux
+ * copies d'une même vérité, dans deux fichiers qui ne peuvent pas se lire : un
+ * contrôle plus bas vérifie qu'elles s'accordent.
+ */
+const MOTIF_OBJET_ABSENT = 'NoSuchKey|Object not found';
 
 /** Valeurs de remplacement, par type de colonne. */
 const VALEURS = {
@@ -342,7 +362,7 @@ async function main() {
         `/storage/v1/object/public/${compartiment}/sonde-inexistante.pdf`,
       );
       const brut = typeof corps === 'string' ? corps : JSON.stringify(corps);
-      const objetAbsent = /NoSuchKey|Object not found/i.test(brut);
+      const objetAbsent = new RegExp(MOTIF_OBJET_ABSENT, 'i').test(brut);
       const compartimentAbsent = /NoSuchBucket|Bucket not found/i.test(brut);
       journaliser(
         nom,
@@ -356,6 +376,28 @@ async function main() {
     }
   }
 
+  // --- 3. L'accord entre l'application et ce contrôle ---------------------
+  // `src/services/documents.ts` cherche la même formulation que ci-dessus pour
+  // décider si un document manque. Deux copies d'une même vérité, dans deux
+  // fichiers qui ne peuvent pas se lire : si Supabase change sa formulation, ce
+  // contrôle échouerait de son côté, mais l'écran, lui, ne chercherait plus
+  // rien — il ouvrirait un onglet sur du JSON sans que personne ne s'en aperçoive.
+  //
+  // Ce contrôle-ci ne peut pas éprouver le chemin de succès (il faudrait un
+  // fichier réellement déposé) ; il peut au moins empêcher les deux copies de
+  // diverger, ce qui est la seule chose qui dépend de nous.
+  const accord = "motif d'objet absent : formulation partagée avec l'application";
+  try {
+    const sourceService = readFileSync(join(DOSSIER_SERVICES, 'documents.ts'), 'utf8');
+    journaliser(
+      accord,
+      sourceService.includes(MOTIF_OBJET_ABSENT),
+      `« ${MOTIF_OBJET_ABSENT} » doit se retrouver dans ${DOSSIER_SERVICES}/documents.ts`,
+    );
+  } catch (cause) {
+    journaliser(accord, false, cause.message);
+  }
+
   // --- Verdict -----------------------------------------------------------
   const echecs = resultats.filter((r) => !r.ok);
   console.log('');
@@ -365,7 +407,9 @@ async function main() {
     console.log('Défaut(s) :');
     for (const echec of echecs) console.log(`  - ${echec.nom}`);
     console.log('');
-    console.log("L'application afficherait un écran vide, sans message.");
+    console.log(
+      'Aucun de ces défauts ne se voit à la compilation : il faut interroger la base réelle.',
+    );
     process.exit(1);
   }
   console.log("Toutes les requêtes de l'application sont servies par la base.");

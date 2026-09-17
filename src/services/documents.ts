@@ -65,6 +65,23 @@ export function adresseDocument(chemin: string): string {
   return data.publicUrl;
 }
 
+/**
+ * Vrai si la réponse du stockage dit que le fichier n'existe pas.
+ *
+ * La formulation est celle de Supabase Storage, relevée sur un fichier absent :
+ * `{"statusCode":"404","error":"not_found","message":"Object not found",
+ * "code":"NoSuchKey"}`, sous un statut **400** — un statut qui, seul, ne
+ * prouverait rien, la base l'employant aussi pour d'autres causes. On ne
+ * conclut donc que sur le corps.
+ *
+ * `scripts/verifier-requetes-app.mjs` sonde le compartiment avec la même
+ * formulation, et vérifie que les deux s'accordent : deux copies d'une même
+ * vérité, dans deux fichiers qui ne peuvent pas se lire, finissent par diverger.
+ */
+export function fichierAbsent(corps: string): boolean {
+  return /NoSuchKey|Object not found/i.test(corps);
+}
+
 /** Libellé lisible d'une catégorie de document. */
 export function libelleCategorieDocument(categorie: DocumentCategorie): string {
   const libelles: Record<DocumentCategorie, string> = {

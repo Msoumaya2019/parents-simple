@@ -41,9 +41,10 @@ Ce n'est **pas** une migration : il n'est pas dans `supabase/migrations/`, et
 
 > Les deux documents qu'il insère décrivent des fichiers PDF qui n'existent pas
 > encore dans l'espace de stockage : la liste s'affichera, mais ouvrir un
-> document échouera — avec un message, pas un écran vide. Pour que les liens
-> fonctionnent, déposer les fichiers dans le compartiment `documents` sous le nom
-> exact donné par `storage_path`.
+> document répondra « Ce document n'est plus disponible » — dans l'application,
+> et non par une erreur brute du navigateur. Pour que les liens fonctionnent,
+> déposer les fichiers dans le compartiment `documents` sous le nom exact donné
+> par `storage_path`.
 
 ---
 

@@ -10,10 +10,14 @@
  *
  * L'ÉCHEC D'OUVERTURE EST EXPLIQUÉ
  * --------------------------------
- * `Linking.openURL` ne dit pas si le fichier existe. Un document dont le
- * fichier a été retiré du stockage produit un lien qui ne mène nulle part, et
- * le navigateur affiche alors une erreur générique. On préfère signaler
- * l'échec dans l'application, avec la marche à suivre.
+ * `Linking.openURL` ne dit pas si le fichier existe : il confie l'adresse au
+ * système, qui ouvre le navigateur même quand il n'y a rien derrière. Le
+ * fichier est donc interrogé avant, et son absence signalée dans
+ * l'application — plutôt que par un JSON d'erreur dans un onglet.
+ *
+ * Le contrôle ne bloque que sur une preuve positive d'absence (`NoSuchKey`).
+ * Un statut inattendu laisse l'ouverture se faire : refuser un document qui
+ * existe serait pire que d'afficher une erreur de navigateur.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +27,12 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { AppText, EmptyState, ErrorNotice, LoadingView, Pill, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useTheme } from '@/providers/theme-provider';
-import { adresseDocument, libelleCategorieDocument, listerDocuments } from '@/services/documents';
+import {
+  adresseDocument,
+  fichierAbsent,
+  libelleCategorieDocument,
+  listerDocuments,
+} from '@/services/documents';
 import type { DocumentUtile } from '@/types/models';
 import { dateSansJour, tailleLisible } from '@/utils/date';
 
@@ -39,13 +48,36 @@ export default function DocumentsScreen(): React.JSX.Element {
     setErreurOuverture(null);
     try {
       const adresse = adresseDocument(document.storagePath);
-      const prisEnCharge = await Linking.canOpenURL(adresse);
-      if (!prisEnCharge) {
-        setErreurOuverture(
-          'Ce document ne peut pas être ouvert sur cet appareil. Essayez depuis un ordinateur.',
-        );
-        return;
+
+      // On interroge le fichier avant de confier l'adresse au navigateur.
+      // `Linking.openURL` se contente de la passer au système : il réussit même
+      // quand la page derrière affiche une erreur. Sans ce contrôle, un
+      // document retiré du stockage ouvrirait un onglet montrant le JSON brut
+      // de la base — mesuré : statut 400, `"code":"NoSuchKey"` — que le parent
+      // ne peut pas interpréter.
+      //
+      // La requête ne demande qu'un octet : le fichier n'est pas téléchargé
+      // deux fois, et la réponse porte le corps qui distingue les causes.
+      const reponse = await fetch(adresse, { headers: { Range: 'bytes=0-0' } });
+
+      if (!reponse.ok) {
+        const corps = await reponse.text();
+
+        // On ne refuse d'ouvrir que sur une preuve positive d'absence. Un
+        // statut inattendu laisse l'ouverture se faire : mieux vaut un onglet
+        // d'erreur qu'un document existant déclaré indisponible.
+        if (fichierAbsent(corps)) {
+          setErreurOuverture(
+            "Ce document n'est plus disponible. Signalez-le à l'association si vous en avez besoin.",
+          );
+          return;
+        }
       }
+
+      // Pas de `canOpenURL` : pour une adresse `https`, le navigateur du
+      // système la prend toujours en charge. Le contrôle ne peut donc rien
+      // apprendre, et son échec — possible sur Android récent si les intentions
+      // ne sont pas déclarées — afficherait un refus faux.
       await Linking.openURL(adresse);
     } catch {
       setErreurOuverture(
