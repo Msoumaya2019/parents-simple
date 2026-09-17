@@ -101,9 +101,14 @@ jobs:
       - name: Contrôler le schéma de la base
         run: npm run sql:check
 
-      # Placé avant l'export, parce qu'il coûte deux secondes là où l'export en
-      # coûte quarante.
-      #
+      # L'export est le seul contrôle qui fait réellement passer le paquet par
+      # Metro. Un module natif mal déclaré, ou un import qui ne se résout qu'en
+      # développement, échoue ici et nulle part ailleurs.
+      - name: Construire le paquet JavaScript
+        run: npm run export:android
+        env:
+          EXPO_NO_TELEMETRY: '1'
+
       # POURQUOI IL EST ICI, ET PLUS SEULEMENT AVANT LA COMPILATION
       # ----------------------------------------------------------
       # Il ne tournait jusqu'ici que dans les deux flux de mise à disposition,
@@ -113,6 +118,14 @@ jobs:
       # étape sans rapport avec elle, et le message parlait de colonnes alors
       # qu'on venait de toucher au style. Le pousser sur `main` est le moment où
       # l'écart apparaît — c'est donc là qu'il doit être vu.
+      #
+      # EN DERNIER, ET C'EST DÉLIBÉRÉ
+      # -----------------------------
+      # Un flux s'arrête à la première étape en échec : tout ce qui suit n'est
+      # pas exécuté. Celui-ci est le seul à dépendre du réseau et de la base, et
+      # donc le seul qui puisse tomber pour une raison étrangère au code. Le
+      # placer en dernier garantit qu'une panne de la base ne cache jamais le
+      # verdict de l'export, qui est local et toujours utile.
       - name: Éprouver la base réelle
         if: github.event_name != 'pull_request'
         run: |
@@ -121,11 +134,3 @@ jobs:
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-
-      # L'export est le seul contrôle qui fait réellement passer le paquet par
-      # Metro. Un module natif mal déclaré, ou un import qui ne se résout qu'en
-      # développement, échoue ici et nulle part ailleurs.
-      - name: Construire le paquet JavaScript
-        run: npm run export:android
-        env:
-          EXPO_NO_TELEMETRY: '1'
