@@ -12,13 +12,14 @@
  * première seconde.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { AnnonceCard } from '@/components/AnnonceCard';
 import { AppText, EmptyState, ErrorNotice, LoadingView, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRafraichissement } from '@/hooks/useRafraichissement';
 import { listerAnnonces } from '@/services/annonces';
 import { useTheme } from '@/providers/theme-provider';
 import type { Annonce } from '@/types/models';
@@ -27,17 +28,12 @@ export default function AccueilScreen(): React.JSX.Element {
   const { theme } = useTheme();
   const router = useRouter();
 
-  const [attente, setAttente] = useState(false);
   const { etat, recharger } = useAsyncData<readonly Annonce[]>('annonces', () => listerAnnonces());
 
-  const tirerPourRafraichir = useCallback(() => {
-    setAttente(true);
-    recharger();
-  }, [recharger]);
-
-  // Dérivé, jamais poussé : dès que le chargement se termine, l'indicateur
-  // disparaît, sans qu'un effet ait eu besoin de remettre un état à `false`.
-  const enRafraichissement = attente && etat.statut === 'chargement';
+  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
+    etat.statut === 'chargement',
+    recharger,
+  );
 
   const ouvrirAnnonce = useCallback(
     (id: string) => {

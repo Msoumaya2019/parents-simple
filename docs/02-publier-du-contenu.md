@@ -16,8 +16,11 @@ Il n'y a pas d'interface d'administration à apprendre : chaque table correspond
 > prouve même l'inverse de ce qu'il a l'air de dire — le projet répond.
 
 > Après chaque ajout ou modification, appuyer sur **Save**. La table est mise à
-> jour immédiatement, et les téléphones la voient au prochain chargement de
-> l'écran concerné — il suffit de tirer vers le bas sur l'écran Accueil.
+> jour immédiatement, mais les téléphones ne le savent pas tout seuls : les
+> onglets ne se rechargent pas quand on les quitte et qu'on y revient. Pour voir
+> le changement, **tirez vers le bas sur l'écran concerné** — celui de la cantine
+> pour un menu, celui de l'agenda pour une date. Sans ce geste, il faut fermer et
+> rouvrir l'application.
 
 ---
 

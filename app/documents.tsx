@@ -26,6 +26,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText, EmptyState, ErrorNotice, LoadingView, Pill, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRafraichissement } from '@/hooks/useRafraichissement';
 import { useTheme } from '@/providers/theme-provider';
 import {
   adresseDocument,
@@ -42,6 +43,11 @@ export default function DocumentsScreen(): React.JSX.Element {
 
   const { etat, recharger } = useAsyncData<readonly DocumentUtile[]>('documents', () =>
     listerDocuments(),
+  );
+
+  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
+    etat.statut === 'chargement',
+    recharger,
   );
 
   const ouvrir = useCallback(async (document: DocumentUtile) => {
@@ -87,7 +93,11 @@ export default function DocumentsScreen(): React.JSX.Element {
   }, []);
 
   return (
-    <Screen edges={[]} scrollable>
+    <Screen
+      edges={[]}
+      scrollable
+      rafraichissement={{ enCours: enRafraichissement, onRefresh: tirerPourRafraichir }}
+    >
       <View style={{ paddingTop: theme.spacing.lg }}>
         <AppText variant="body" color="muted">
           Formulaires, calendriers et documents utiles aux familles. Ils s’ouvrent dans votre

@@ -22,6 +22,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText, Card, EmptyState, ErrorNotice, LoadingView, Pill, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRafraichissement } from '@/hooks/useRafraichissement';
 import { useTheme } from '@/providers/theme-provider';
 import { listerEvenementsPasses, listerProchainsEvenements } from '@/services/agenda';
 import type { EvenementAgenda } from '@/types/models';
@@ -39,6 +40,11 @@ export default function AgendaScreen(): React.JSX.Element {
       ? listerProchainsEvenements(maintenant)
       : listerEvenementsPasses(maintenant);
   });
+
+  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
+    etat.statut === 'chargement',
+    recharger,
+  );
 
   const entete = (
     <View style={{ paddingTop: theme.spacing.lg }}>
@@ -70,7 +76,10 @@ export default function AgendaScreen(): React.JSX.Element {
   );
 
   return (
-    <Screen scrollable>
+    <Screen
+      scrollable
+      rafraichissement={{ enCours: enRafraichissement, onRefresh: tirerPourRafraichir }}
+    >
       {entete}
 
       {etat.statut === 'chargement' ? <LoadingView /> : null}

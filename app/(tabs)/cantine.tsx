@@ -26,6 +26,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText, Card, EmptyState, ErrorNotice, LoadingView, Pill, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRafraichissement } from '@/hooks/useRafraichissement';
 import { useTheme } from '@/providers/theme-provider';
 import { listerMenus } from '@/services/cantine';
 import type { MenuCantine } from '@/types/models';
@@ -68,6 +69,11 @@ export default function CantineScreen(): React.JSX.Element {
 
   const { etat, recharger } = useAsyncData<readonly MenuCantine[]>(`menus-${cle}`, () =>
     listerMenus(cle, 7),
+  );
+
+  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
+    etat.statut === 'chargement',
+    recharger,
   );
 
   const aujourdhui = jourCourant();
@@ -146,7 +152,10 @@ export default function CantineScreen(): React.JSX.Element {
   );
 
   return (
-    <Screen scrollable>
+    <Screen
+      scrollable
+      rafraichissement={{ enCours: enRafraichissement, onRefresh: tirerPourRafraichir }}
+    >
       {entete}
 
       {etat.statut === 'chargement' ? <LoadingView message="Chargement des menus…" /> : null}

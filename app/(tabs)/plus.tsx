@@ -24,6 +24,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { SondageCard } from '@/components/SondageCard';
 import { AppText, Card, ErrorNotice, LoadingView, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRafraichissement } from '@/hooks/useRafraichissement';
 import { enregistrerVote, lireVotesLocaux } from '@/lib/votes-locaux';
 import { useTheme } from '@/providers/theme-provider';
 import { listerDocuments } from '@/services/documents';
@@ -39,6 +40,22 @@ export default function PlusScreen(): React.JSX.Element {
   const sondages = useAsyncData<readonly Sondage[]>('sondages', () => listerSondages());
   const documents = useAsyncData<readonly DocumentUtile[]>('documents-plus', () =>
     listerDocuments(200),
+  );
+
+  const { recharger: rechargerSondages } = sondages;
+  const { recharger: rechargerDocuments } = documents;
+
+  const rechargerTout = useCallback(() => {
+    rechargerSondages();
+    rechargerDocuments();
+  }, [rechargerSondages, rechargerDocuments]);
+
+  // Le geste n'est terminé que lorsque les DEUX chargements le sont : l'écran
+  // montre des sondages et des documents, et l'indicateur s'arrêterait sur le
+  // premier revenu, en laissant l'autre se remplir après coup.
+  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
+    sondages.etat.statut === 'chargement' || documents.etat.statut === 'chargement',
+    rechargerTout,
   );
 
   useEffect(() => {
@@ -69,7 +86,10 @@ export default function PlusScreen(): React.JSX.Element {
   const nombreDocuments = documents.etat.statut === 'succes' ? documents.etat.donnees.length : null;
 
   return (
-    <Screen scrollable>
+    <Screen
+      scrollable
+      rafraichissement={{ enCours: enRafraichissement, onRefresh: tirerPourRafraichir }}
+    >
       <View style={{ paddingTop: theme.spacing.lg }}>
         <AppText variant="caption" color="accent">
           Association de parents
