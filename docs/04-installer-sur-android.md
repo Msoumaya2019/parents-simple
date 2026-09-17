@@ -28,8 +28,11 @@ Sur GitHub, dans le dépôt :
 2. laisser la branche sur `main`, puis **Run workflow**.
 
 La compilation prend une vingtaine de minutes. Elle vérifie d'abord le code
-(formatage, analyse, types, tests, schéma de la base, flux de travail) avant de
-compiler : un binaire qui compile n'est pas un binaire juste.
+(formatage, analyse, types, tests, schéma de la base, flux de travail), puis
+**éprouve la base réelle** avec la même clé que celle embarquée dans
+l'application — ce qu'un inconnu ne peut pas y faire, et ce que l'application
+doit pouvoir y lire. Un binaire qui compile n'est pas un binaire juste, et un
+binaire juste n'est pas encore un binaire qui affiche quelque chose.
 
 ### Les deux secrets Supabase, une seule fois
 
