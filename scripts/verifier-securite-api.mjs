@@ -196,7 +196,12 @@ async function verifierLectureInterdite() {
 async function verifierEcrituresRefusees() {
   const tentatives = [
     ['insertion dans annonces', '/rest/v1/annonces', 'POST', { titre: 'intrusion', corps: 'x' }],
-    ['insertion dans cantine_menus', '/rest/v1/cantine_menus', 'POST', { jour: '2026-01-01' }],
+    [
+      'insertion dans cantine_menus',
+      '/rest/v1/cantine_menus',
+      'POST',
+      { service_date: '2026-01-01' },
+    ],
     ['insertion dans documents', '/rest/v1/documents', 'POST', { titre: 'intrusion' }],
     ['insertion dans messages', '/rest/v1/messages', 'POST', { sujet: 'intrusion', corps: 'x' }],
     ['insertion dans sondage_votes', '/rest/v1/sondage_votes', 'POST', { sondage_id: 'x' }],
@@ -221,12 +226,20 @@ async function verifierEcrituresRefusees() {
         body: corps === null ? undefined : JSON.stringify(corps),
       });
 
+      // Seuls 401 et 403 sont des refus. Un 400 n'en est pas un : PostgREST
+      // rejette alors la charge utile — colonne inconnue, valeur invalide —
+      // AVANT de regarder les droits. Un tel contrôle ne prouve donc rien, et
+      // c'est le contrôle qu'il faut corriger. L'assouplir pour accepter 400
+      // le rendrait muet, et c'est exactement ce qui est arrivé une fois ici :
+      // la tentative d'insertion dans `cantine_menus` visait une colonne
+      // `jour` inexistante, la vraie étant `service_date`.
       const refuse = statut === 401 || statut === 403;
-      journaliser(
-        nom + ' : refusée',
-        refuse,
-        refuse ? `HTTP ${statut}` : `HTTP ${statut} — ${messageDe(reponse)}`,
-      );
+      const diagnostic = refuse
+        ? `HTTP ${statut}`
+        : statut === 400
+          ? `HTTP 400 — charge utile rejetée avant le contrôle des droits : ${messageDe(reponse)}`
+          : `HTTP ${statut} — ${messageDe(reponse)}`;
+      journaliser(nom + ' : refusée', refuse, diagnostic);
     } catch (cause) {
       journaliser(`${nom} : refusée`, false, cause.message);
     }
@@ -272,21 +285,29 @@ async function verifierFonctions() {
   //    la contrainte `messages_sujet_valide` s'en charge. Ce contrôle prouve
   //    que la fonction est exposée et qu'elle s'exécute réellement, sans
   //    déposer un message dans la boîte du bureau.
+  //
+  //    Le corps est VALIDE à dessein. Avec un corps vide lui aussi, les deux
+  //    contraintes tombent et PostgreSQL rapporte celle qu'il évalue en
+  //    premier — mesuré : `messages_corps_valide`. Le contrôle passait alors
+  //    sans jamais éprouver la contrainte sur le sujet. Corps rempli, la seule
+  //    contrainte violable est celle du sujet, et le message d'erreur la nomme :
+  //    on l'exige, plutôt que de se contenter d'un statut différent de 200.
   try {
     const { statut, corps } = await appeler('/rest/v1/rpc/envoyer_message', {
       method: 'POST',
       body: JSON.stringify({
         p_sujet: '   ',
-        p_corps: '   ',
+        p_corps: 'Contrôle de sécurité : ce message ne doit jamais être inséré.',
         p_categorie: 'autre',
         p_reponse_a: null,
         p_appareil_id: '00000000-0000-0000-0000-000000000000',
       }),
     });
+    const message = messageDe(corps);
     journaliser(
       'envoyer_message : refuse un sujet vide',
-      statut !== 200 && statut !== 201,
-      `HTTP ${statut} — ${messageDe(corps)}`,
+      statut !== 200 && statut !== 201 && message.includes('messages_sujet_valide'),
+      `HTTP ${statut} — ${message}`,
     );
   } catch (cause) {
     journaliser('envoyer_message : refuse un sujet vide', false, cause.message);

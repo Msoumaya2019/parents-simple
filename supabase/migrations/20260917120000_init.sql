@@ -473,13 +473,19 @@ create trigger sondage_votes_verifier_coherence
 --  connexion mobile médiocre, l'écran se remplirait par morceaux, chaque
 --  sondage apparaissant après une attente séparée. Une seule requête pour
 --  l'ensemble donne un affichage complet d'un coup.
+--  `position` est entre guillemets, et ce n'est pas une coquetterie : ce mot est
+--  accepté par PostgreSQL comme nom de colonne de table, mais refusé comme nom
+--  de colonne dans une clause `returns table`. Nu, il fait échouer la création
+--  de la fonction entière sur `42601: syntax error at or near "position"`.
+--  Les guillemets ne changent pas le nom produit : le JSON rend toujours
+--  `position`. Les retirer casse la migration.
 create or replace function public.sondage_resultats(p_sondage_ids uuid[])
 returns table (
-  sondage_id uuid,
-  choix_id   uuid,
-  libelle    text,
-  position   integer,
-  votes      bigint
+  sondage_id  uuid,
+  choix_id    uuid,
+  libelle     text,
+  "position"  integer,
+  votes       bigint
 )
 language sql
 stable
