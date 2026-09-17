@@ -26,7 +26,7 @@
  * du ciel, quelle que soit l'image.
  */
 
-import type { ImageSourcePropType } from 'react-native';
+import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 import { Image, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -96,7 +96,7 @@ function Feuille({
   readonly couleur: string;
   readonly taille: number;
   readonly rotation: string;
-  readonly style: object;
+  readonly style: StyleProp<ViewStyle>;
 }): React.JSX.Element {
   return (
     <View
@@ -176,8 +176,8 @@ export function BanniereAccueil({
       )}
 
       <Soleil couleur={soleil} />
-      <Feuille couleur={feuille} taille={54} rotation="-18deg" style={styles.feuilleGauche} />
-      <Feuille couleur={feuilleClaire} taille={40} rotation="24deg" style={styles.feuilleDroite} />
+      <Feuille couleur={feuille} taille={54} rotation="-18deg" style={styles.feuilleHaute} />
+      <Feuille couleur={feuilleClaire} taille={40} rotation="24deg" style={styles.feuilleBasse} />
 
       <View style={[styles.contenu, { padding: theme.spacing.lg }]}>
         <AppText variant="caption" color="accent">
@@ -260,11 +260,14 @@ const styles = StyleSheet.create({
     height: 9,
     borderRadius: 2,
   },
-  feuilleGauche: {
+  // Les deux feuilles sont sur le bord GAUCHE, comme sur la maquette — l'une
+  // haute, l'autre basse. Les nommer « gauche » et « droite » aurait été faux :
+  // la seconde déborde par la gauche, à 26 points du bord.
+  feuilleHaute: {
     top: 18,
     left: -16,
   },
-  feuilleDroite: {
+  feuilleBasse: {
     bottom: -10,
     left: 26,
   },

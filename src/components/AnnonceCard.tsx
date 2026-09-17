@@ -63,6 +63,7 @@ export function AnnonceCard({ annonce, onPress }: AnnonceCardProps): React.JSX.E
           <ImageDistante
             source={adresseImage(image)}
             iconeRepli={categorie.icone}
+            ton={categorie.ton}
             style={[styles.vignette, { borderRadius: theme.radii.lg }]}
           />
         )}
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   pied: {
-    marginTop: 10,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

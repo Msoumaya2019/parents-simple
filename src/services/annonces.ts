@@ -103,6 +103,26 @@ export function adresseImage(valeur: string): string {
  *
  * Le `ton` est un nom de la palette du thème, pas une couleur. C'est ce qui
  * permet au mode sombre d'exister sans que ce fichier en sache rien.
+ *
+ * POURQUOI CES TONS-LÀ
+ * --------------------
+ * Trois contraintes se recoupent, et la troisième n'est pas la plus visible :
+ *
+ *   - la maquette montre « À venir » en bleu et « Cantine » en vert : ces deux
+ *     tons-là sont donc fixés par elle ;
+ *   - les raccourcis de l'accueil donnent un ton par rubrique — la cantine en
+ *     menthe, l'agenda en orange. Une actualité de catégorie « agenda » qui
+ *     porterait une autre couleur que le raccourci « Agenda » se lirait comme
+ *     deux rubriques distinctes ;
+ *   - les cinq tons doivent rester distinguables. « actualité » prend donc le
+ *     violet plutôt que le bleu, pour ne pas se confondre avec « à venir ».
+ *
+ * Reste le corail, attribué à « association » alors qu'il sert aussi à
+ * l'indicateur « Important ». Les deux se rencontrent sur une seule
+ * combinaison — une actualité épinglée et rangée dans « association » — et les
+ * deux pastilles y portent un libellé et une icône différents. C'est la
+ * conséquence d'une palette de cinq tons pour cinq catégories plus un
+ * indicateur : elle est acceptée plutôt que contournée par un sixième ton.
  */
 export const CATEGORIES_ANNONCE: Readonly<
   Record<
@@ -114,9 +134,9 @@ export const CATEGORIES_ANNONCE: Readonly<
     }
   >
 > = Object.freeze({
-  actualite: { libelle: 'Actualité', ton: 'bleu', icone: 'information-circle' },
+  actualite: { libelle: 'Actualité', ton: 'violet', icone: 'information-circle' },
   cantine: { libelle: 'Cantine', ton: 'menthe', icone: 'restaurant' },
-  agenda: { libelle: 'Agenda', ton: 'violet', icone: 'calendar' },
-  a_venir: { libelle: 'À venir', ton: 'orange', icone: 'time' },
+  agenda: { libelle: 'Agenda', ton: 'orange', icone: 'calendar' },
+  a_venir: { libelle: 'À venir', ton: 'bleu', icone: 'time' },
   association: { libelle: 'Association', ton: 'corail', icone: 'people' },
 });

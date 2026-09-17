@@ -81,7 +81,7 @@ export function AnnonceEnAvant({ annonce, onPress }: AnnonceEnAvantProps): React
             variant="body"
             color="secondary"
             numberOfLines={etroit ? 4 : 7}
-            style={styles.texteResume}
+            style={etroit ? null : styles.texteResume}
           >
             {extraire(annonce.corps, 240)}
           </AppText>
@@ -89,6 +89,7 @@ export function AnnonceEnAvant({ annonce, onPress }: AnnonceEnAvantProps): React
           <ImageDistante
             source={adresseImage(image)}
             iconeRepli={categorie.icone}
+            ton={categorie.ton}
             style={
               etroit
                 ? [styles.imageLarge, { borderRadius: theme.radii.lg }]
@@ -112,12 +113,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   titre: {
-    marginTop: 10,
+    marginTop: 12,
   },
   resume: {
     marginTop: 8,
   },
   texteResume: {
+    // `flex: 1` seulement côte à côte, jamais dans la disposition empilée : dans
+    // une colonne de hauteur automatique, la place à répartir est nulle et
+    // `flex: 1` pose une base de zéro — le résumé s'effondrerait.
     flex: 1,
   },
   cote: {

@@ -28,6 +28,7 @@ import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-n
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/providers/theme-provider';
+import type { TonPastel } from '@/theme';
 
 interface ImageDistanteProps {
   readonly source: string;
@@ -37,6 +38,12 @@ interface ImageDistanteProps {
   readonly description?: string;
   /** Icône du repli, quand l'image ne dit rien par elle-même. */
   readonly iconeRepli?: keyof typeof Ionicons.glyphMap;
+  /**
+   * Ton du cadre d'attente et du repli. L'appelant y passe le ton de sa
+   * catégorie : la vignette prend alors la couleur de la pastille posée
+   * au-dessus, au lieu d'ajouter une teinte de plus à la carte.
+   */
+  readonly ton?: TonPastel;
 }
 
 export function ImageDistante({
@@ -44,11 +51,12 @@ export function ImageDistante({
   style,
   description,
   iconeRepli = 'image-outline',
+  ton = 'bleu',
 }: ImageDistanteProps): React.JSX.Element {
   const { theme } = useTheme();
   const [etat, setEtat] = useState<'chargement' | 'affichee' | 'echec'>('chargement');
 
-  const pastel = theme.colors.pastels.bleu;
+  const pastel = theme.colors.pastels[ton];
   const rayon = theme.radii.lg;
 
   return (

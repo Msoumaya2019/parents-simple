@@ -17,7 +17,7 @@
  * maintenir, et deux occasions de les faire diverger.
  */
 
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppText, Card } from '@/components/ui';
@@ -59,9 +59,10 @@ export function SondageAccueil({ sondage, onParticiper }: SondageAccueilProps): 
         </View>
 
         <View style={styles.colonne}>
-          {/* En capitales : c'est une accroche, pas une phrase. Le texte lu par
-              un lecteur d'écran reste en minuscules — une chaîne tout en
-              capitales y est épelée lettre par lettre par certains lecteurs. */}
+          {/* En capitales à l'écran seulement. La carte est un bouton et porte
+              son propre libellé accessible : ses enfants ne sont pas annoncés
+              séparément, donc cette chaîne n'est jamais lue telle quelle — ce
+              qui évite qu'un lecteur d'écran l'épelle lettre par lettre. */}
           <AppText variant="caption" style={{ color: violet.encre }}>
             {ACCROCHE.toLocaleUpperCase('fr-FR')}
           </AppText>
@@ -77,23 +78,17 @@ export function SondageAccueil({ sondage, onParticiper }: SondageAccueilProps): 
           )}
         </View>
 
-        <Pressable
-          onPress={onParticiper}
-          accessibilityRole="button"
-          accessibilityLabel={`Participer au sondage : ${sondage.question}`}
-          style={({ pressed }) => [
-            styles.bouton,
-            {
-              backgroundColor: violet.encre,
-              borderRadius: theme.radii.pill,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
+        {/* Un bouton qui n'en est pas un : c'est la carte entière qui répond.
+            Un second bouton imbriqué serait de toute façon inatteignable — un
+            lecteur d'écran ne descend pas dans les enfants d'un élément
+            accessible — et annoncerait deux cibles pour une seule action. */}
+        <View
+          style={[styles.bouton, { backgroundColor: violet.encre, borderRadius: theme.radii.pill }]}
         >
           <AppText variant="label" color="onAccent">
             Participer
           </AppText>
-        </Pressable>
+        </View>
       </View>
     </Card>
   );
