@@ -10,6 +10,32 @@ Il n'y a pas d'interface d'administration à apprendre : chaque table correspond
 
 ---
 
+## Pour essayer l'application avant de saisir le vrai contenu
+
+Une base neuve est vide, et une application vide affiche cinq onglets vides :
+impossible de distinguer « tout fonctionne, il n'y a rien à montrer » de
+« quelque chose est cassé ».
+
+[`supabase/exemple-contenu.sql`](../supabase/exemple-contenu.sql) remplit chaque
+table de quelques lignes réalistes. À coller dans **SQL Editor** → **New query**,
+puis **Run**. Il peut être relancé sans créer de doublon, et le bloc de nettoyage
+à la fin — en commentaire — retire exactement ce qu'il a ajouté.
+
+Il crée notamment **un sondage ouvert**, ce qui permet d'éprouver le seul chemin
+que les contrôles automatiques ne couvrent pas : voter. Un `voter` cassé ne se
+manifesterait nulle part ailleurs.
+
+Ce n'est **pas** une migration : il n'est pas dans `supabase/migrations/`, et
+`npm run sql:check` ne le lit pas. Il ne s'applique jamais tout seul.
+
+> Les deux documents qu'il insère décrivent des fichiers PDF qui n'existent pas
+> encore dans l'espace de stockage : la liste s'affichera, mais ouvrir un
+> document échouera — avec un message, pas un écran vide. Pour que les liens
+> fonctionnent, déposer les fichiers dans le compartiment `documents` sous le nom
+> exact donné par `storage_path`.
+
+---
+
 ## Actualités — table `annonces`
 
 Onglet **Accueil**.

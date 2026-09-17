@@ -108,6 +108,11 @@ Tout se fait depuis le tableau de bord Supabase, section **Table Editor**.
 Le détail — quel champ remplir, dans quel ordre, et ce qui apparaît à l'écran —
 est dans [`docs/02-publier-du-contenu.md`](docs/02-publier-du-contenu.md).
 
+Pour essayer l'application avant de saisir le vrai contenu,
+[`supabase/exemple-contenu.sql`](supabase/exemple-contenu.sql) remplit chaque
+table de quelques lignes réalistes — dont un sondage ouvert, ce qui permet
+d'éprouver le seul chemin que les contrôles automatiques ne couvrent pas : voter.
+
 ---
 
 ## Vérifications
