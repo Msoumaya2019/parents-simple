@@ -24,6 +24,30 @@ Il n'y a pas d'interface d'administration à apprendre : chaque table correspond
 
 ---
 
+## En un coup d'œil
+
+| Ce que vous voulez publier             | Où le faire                                     | Section                               |
+| -------------------------------------- | ----------------------------------------------- | ------------------------------------- |
+| Un article, une information            | Table `annonces`                                | Actualités                            |
+| Une photo sur un article               | Storage, compartiment `annonces`                | L'illustration                        |
+| Un document à télécharger              | Storage `documents`, **puis** table `documents` | Documents                             |
+| La photo de l'école, en tête d'accueil | `assets/banniere-ecole.jpg`, puis recompiler    | README, « Personnaliser la bannière » |
+| Un menu de cantine                     | Table `cantine_menus`                           | Menus de cantine                      |
+| Une date à retenir                     | Table `agenda_events`                           | Agenda                                |
+| Un sondage                             | Tables `sondages` et `sondage_choix`            | Sondages                              |
+| Lire les messages reçus                | Table `messages`                                | Lire les messages                     |
+
+Deux règles valent pour tout ce qui suit :
+
+- **la table `annonces` et la table `documents` ne sont pas la même chose.** Une
+  actualité s'affiche dans le fil de l'accueil ; un document s'ouvre depuis
+  l'onglet Plus, et son fichier vit dans un compartiment de stockage ;
+- **un fichier déposé dans un compartiment ne s'affiche nulle part tout seul.**
+  C'est la ligne de table qui le rend visible, et c'est elle qui porte le nom du
+  fichier.
+
+---
+
 ## Pour essayer l'application avant de saisir le vrai contenu
 
 Une base neuve est vide, et une application vide affiche cinq onglets vides :
@@ -55,14 +79,22 @@ Ce n'est **pas** une migration : il n'est pas dans `supabase/migrations/`, et
 
 Onglet **Accueil**. Chaque ligne devient une carte du fil.
 
-| Colonne      | À remplir                                                                  |
-| ------------ | -------------------------------------------------------------------------- |
-| `titre`      | Le titre, 160 caractères au maximum                                        |
-| `corps`      | Le texte complet. Les retours à la ligne sont conservés                    |
-| `categorie`  | La rubrique : `actualite`, `cantine`, `agenda`, `a_venir` ou `association` |
-| `image_url`  | Facultatif — l'illustration de la carte (voir plus bas)                    |
-| `epinglee`   | `true` pour garder l'actualité en tête du fil                              |
-| `publiee_le` | Laisser vide : la date du jour est posée automatiquement                   |
+| Colonne      | À remplir                                                                            |
+| ------------ | ------------------------------------------------------------------------------------ |
+| `titre`      | Le titre, 160 caractères au maximum                                                  |
+| `corps`      | Le texte complet, 8 000 caractères au maximum. Les retours à la ligne sont conservés |
+| `categorie`  | La rubrique : `actualite`, `cantine`, `agenda`, `a_venir` ou `association`           |
+| `image_url`  | Facultatif — l'illustration de la carte (voir plus bas)                              |
+| `epinglee`   | `true` pour garder l'actualité en tête du fil                                        |
+| `publiee_le` | Laisser vide : la date du jour est posée automatiquement                             |
+
+**Les deux limites de caractères sont refusées par la base, pas tronquées.**
+Dépasser 160 caractères de titre, ou 8 000 de corps, fait échouer
+l'enregistrement avec un message qui parle de contrainte et non de longueur. Le
+tableau de bord affiche alors `new row for relation "annonces" violates check
+constraint "annonces_titre_valide"` — c'est le signe qu'un des deux champs est
+trop long. Pour un texte qui dépasse, couper en deux actualités vaut mieux
+qu'un article que personne ne finit de lire.
 
 **La première actualité reçoit une carte plus grande.** Le fil est trié par la
 base — les épinglées d'abord, puis des plus récentes aux plus anciennes — et
@@ -105,8 +137,26 @@ l'information la plus utile des deux.
   ailleurs.
 
 Pour déposer une image : Tableau de bord → **Storage** → compartiment `annonces`
-→ **Upload file**, puis recopier le nom du fichier dans `image_url`, **tel
-quel**. Formats acceptés : JPEG, PNG, WebP, AVIF. Taille maximale : 5 Mo.
+→ **Upload file**. Formats acceptés : JPEG, PNG, WebP, AVIF. Taille maximale :
+5 Mo.
+
+Reste à dire à l'actualité quelle image utiliser, et les deux formes ci-dessus
+ne se valent pas :
+
+- **coller l'adresse complète** de l'image. C'est la façon la plus sûre : rien
+  ne peut être mal recopié, et l'adresse se vérifie d'un coup d'œil — elle
+  commence par `https://` et contient `/storage/v1/object/public/annonces/`
+  suivi du nom du fichier. On l'obtient depuis Storage, par le bouton qui copie
+  l'adresse publique du fichier ;
+- **écrire le nom du fichier seul**, par exemple `photo-classe.jpg`. Plus court,
+  mais il doit correspondre **exactement** — majuscules et extension comprises.
+  Si le fichier a été rangé dans un dossier, c'est le chemin entier qu'il faut
+  écrire : `2026-2027/photo-classe.jpg`.
+
+Un nom qui ne correspond à rien ne casse pas la carte : la vignette affiche
+alors l'icône de la catégorie, exactement comme s'il n'y avait pas d'image.
+C'est le symptôme à reconnaître — **une photo qui n'apparaît pas est presque
+toujours un nom mal recopié, pas un fichier manquant.**
 
 Le compartiment est **public en lecture**, comme celui des documents : une photo
 où un enfant serait reconnaissable et nommé n'y a pas sa place. Une vue de
@@ -141,13 +191,19 @@ Onglet **Cantine**. **Une ligne par jour de service.**
 | `allergenes`   | Liste, à saisir entre accolades : `{"gluten","lait"}`      |
 | `notes`        | Facultatif — par exemple « repas froid, sortie scolaire »  |
 
-Deux points d'attention :
+Trois points d'attention :
 
 - **la date est un jour civil, sans heure.** Saisir `2026-09-22` et non
   `2026-09-22T12:00:00` : un instant serait réinterprété selon le fuseau du
   téléphone, et le menu pourrait apparaître la veille chez certains parents ;
 - **une seule ligne par jour.** La base refuse un second menu pour la même
-  date, ce qui évite deux affichages contradictoires.
+  date, ce qui évite deux affichages contradictoires ;
+- **au moins un des trois plats doit être rempli.** `entree`, `plat` et `dessert`
+  sont facultatifs _séparément_, mais une ligne qui laisse les trois vides est
+  refusée. C'est voulu : elle afficherait « Cantine » sans rien dire, et il vaut
+  mieux ne pas créer de ligne du tout. Pour signaler une journée particulière —
+  « repas froid, sortie scolaire » —, remplir au moins un plat, ou n'écrire la
+  précision que le jour où elle sert.
 
 Renseigner les menus la semaine précédente est le rythme le plus confortable
 pour les familles. Un jour sans ligne affiche « Pas de cantine ce jour-là » —
@@ -171,6 +227,12 @@ Onglet **Agenda**.
 **Le fuseau horaire compte.** Écrire `2026-09-22T18:30:00+02:00` plutôt que
 `2026-09-22T18:30:00` : sans indication de fuseau, la base interprète l'heure
 comme UTC, et la réunion de 18 h 30 s'afficherait à 20 h 30.
+
+**L'heure de fin ne peut pas précéder celle de début.** La base refuse la ligne,
+avec `agenda_ordre_valide`. L'erreur vient presque toujours de la date : un
+début le 22 à 18 h 30 et une fin le 21 à 20 h est refusé. En cas de doute sur
+l'heure de fin, laisser `fin_le` vide — l'événement s'affiche alors sans horaire
+de fin, ce qui vaut mieux qu'une horloge fausse.
 
 Un événement apparaît dans « À venir » tant que son début n'est pas passé. Il
 bascule ensuite dans « Passés », où il reste consultable.
@@ -207,8 +269,12 @@ Table Editor → table `documents` → **Insert row** :
 | `taille_octets` | Facultatif — affiché pour prévenir d'un gros téléchargement     |
 
 > `storage_path` doit correspondre exactement au nom du fichier dans le
-> compartiment, extension comprise. C'est la seule erreur possible ici, et elle
-> se manifeste par un téléchargement qui échoue.
+> compartiment, extension comprise — et inclure le dossier s'il y en a un :
+> `2026-2027/reglement.pdf`. C'est la seule erreur possible ici, et elle se
+> manifeste par un téléchargement qui échoue, l'application affichant alors
+> « Ce document n'est plus disponible ».
+>
+> Le titre est limité à 160 caractères, comme celui d'une actualité.
 
 ---
 
