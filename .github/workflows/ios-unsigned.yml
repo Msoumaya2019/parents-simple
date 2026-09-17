@@ -55,10 +55,19 @@ permissions:
 jobs:
   construire:
     name: Construire l'IPA non signé
-    # macos-15 et non macos-14 : Expo SDK 57 demande Xcode 16, absent de
-    # l'image précédente. Le build échouerait à l'étape de compilation, avec un
-    # message peu explicite.
-    runs-on: macos-15
+    # macos-26 et non macos-15. `expo-modules-jsi` — dépendance transitive
+    # d'Expo SDK 57 — déclare `// swift-tools-version: 6.2` dans son
+    # `apple/Package.swift`. Cette version de Swift n'arrive qu'avec Xcode 26 ;
+    # l'image macos-15 a Xcode 16.4 par défaut (Swift 6.1), et la compilation
+    # échoue sur un message qui ne nomme pas la vraie cause :
+    #
+    #   xcodebuild: error: Could not resolve package dependencies:
+    #     package 'apple' is using Swift tools version 6.2.0 but the installed
+    #     version is 6.1.0
+    #
+    # `apple` est le nom du dossier du paquet, pas celui d'une bibliothèque
+    # d'Apple — ce qui rend le message difficile à relier à sa cause.
+    runs-on: macos-26
     timeout-minutes: 60
 
     env:
@@ -85,6 +94,38 @@ jobs:
     steps:
       - name: Récupérer le dépôt
         uses: actions/checkout@v5
+
+      - name: Vérifier la chaîne d'outils
+        # Le défaut d'une image d'exécuteur change avec le temps : GitHub a déjà
+        # annoncé des bascules de version d'Xcode par défaut. On ne s'y fie donc
+        # pas — on le vérifie. Ce contrôle est instantané, là où l'échec qu'il
+        # remplace survient après deux minutes de compilation, sous la forme
+        # d'une erreur de résolution de paquet qui ne nomme pas sa cause.
+        #
+        # Xcode 26 est le premier à fournir Swift 6.2, exigé par
+        # `expo-modules-jsi` (voir `swift-tools-version` dans son
+        # `apple/Package.swift`).
+        run: |
+          echo "Xcode : $(xcodebuild -version | head -n 1)"
+          echo "Swift : $(swift --version 2>&1 | head -n 1)"
+
+          VERSION=$(xcodebuild -version | head -n 1 | sed 's/^Xcode //')
+          MAJEUR=${VERSION%%.*}
+
+          if [ -z "$MAJEUR" ]; then
+            echo "::error::xcodebuild -version n'a rien renvoyé : Xcode est-il installé ?"
+            exit 1
+          fi
+
+          if [ "$MAJEUR" -lt 26 ]; then
+            echo "::error::Xcode $VERSION est trop ancien pour ce projet."
+            echo "expo-modules-jsi déclare « swift-tools-version: 6.2 », fourni à partir d'Xcode 26."
+            echo "Sans cela, la compilation échoue sur :"
+            echo "  package 'apple' is using Swift tools version 6.2.0 but the installed version is 6.1.0"
+            exit 1
+          fi
+
+          echo "Chaîne d'outils suffisante (Xcode $VERSION)."
 
       - name: Installer Node.js
         uses: actions/setup-node@v5
