@@ -126,6 +126,15 @@ tableau de bord, et exécuter chacun avant de passer au suivant.
 Tous les fichiers sont écrits pour pouvoir être rejoués : les relancer sur une
 base à jour ne produit ni erreur ni doublon.
 
+> **La compilation aussi s'arrête.** Une compilation lancée avant d'avoir
+> appliqué la migration échoue **en une minute**, sur l'étape « Éprouver la base
+> avant de compiler », avec `column annonces.categorie does not exist` et
+> `404 Bucket not found`. Ce n'est pas une panne de compilation : c'est le
+> garde-fou qui refuse de produire un binaire dont les requêtes ne correspondent
+> pas à la base déployée. Sans lui, l'application s'installerait et afficherait
+> un écran d'erreur à la place des actualités. Appliquez la migration, puis
+> relancez — la compilation reprend normalement.
+
 ---
 
 ## Publier du contenu

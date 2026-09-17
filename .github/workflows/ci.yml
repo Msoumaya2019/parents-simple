@@ -26,10 +26,18 @@
 #                  schéma s'applique sans erreur et l'application fonctionne.
 #    export        le seul contrôle qui vérifie que les modules se résolvent
 #                  réellement dans le paquet. Ni tsc ni ESLint ne le font.
+#    base réelle   une colonne ajoutée au code sans migration appliquée, ou une
+#                  table renommée dans le schéma. Ni tsc ni les tests ne le
+#                  voient : les tests simulent la base. Seul un appel réel le
+#                  dit — et c'est le seul contrôle qui demande des secrets.
 #
-#  Aucun secret n'est requis : l'application est conçue pour démarrer sans
-#  configuration, en affichant un écran qui explique ce qui manque. C'est ce
-#  qui permet à un dépôt public de vérifier son code sans stocker de clé.
+#  Une seule étape demande donc des secrets, celle qui éprouve la base réelle,
+#  et elle est écartée des propositions de modification : une proposition venue
+#  d'un dépôt dérivé n'y a pas accès, et l'étape échouerait sur une configuration
+#  absente plutôt que sur un défaut de code. Les autres n'en demandent aucun :
+#  l'application est conçue pour démarrer sans configuration, en affichant un
+#  écran qui explique ce qui manque. C'est ce qui permet à un dépôt public de
+#  vérifier son code sans clé.
 # =============================================================================
 
 name: Intégration continue
@@ -92,6 +100,27 @@ jobs:
 
       - name: Contrôler le schéma de la base
         run: npm run sql:check
+
+      # Placé avant l'export, parce qu'il coûte deux secondes là où l'export en
+      # coûte quarante.
+      #
+      # POURQUOI IL EST ICI, ET PLUS SEULEMENT AVANT LA COMPILATION
+      # ----------------------------------------------------------
+      # Il ne tournait jusqu'ici que dans les deux flux de mise à disposition,
+      # déclenchés à la main. Une colonne ajoutée au code sans que la migration
+      # correspondante soit appliquée ne se voyait donc qu'au moment de produire
+      # le binaire : la compilation s'arrêtait en quarante secondes, sur une
+      # étape sans rapport avec elle, et le message parlait de colonnes alors
+      # qu'on venait de toucher au style. Le pousser sur `main` est le moment où
+      # l'écart apparaît — c'est donc là qu'il doit être vu.
+      - name: Éprouver la base réelle
+        if: github.event_name != 'pull_request'
+        run: |
+          npm run securite:api
+          npm run verifier:requetes
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
       # L'export est le seul contrôle qui fait réellement passer le paquet par
       # Metro. Un module natif mal déclaré, ou un import qui ne se résout qu'en
