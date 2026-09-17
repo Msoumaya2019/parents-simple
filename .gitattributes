@@ -1,0 +1,26 @@
+# Normalisation des fins de ligne.
+#
+# POURQUOI CE FICHIER EST NÉCESSAIRE
+# ----------------------------------
+# Par défaut, Git convertit les fins de ligne en CRLF sur Windows à l'extraction.
+# Or Prettier est configuré avec `endOfLine: 'lf'` : après un clone sur Windows,
+# `npm run format:check` échouerait sur tous les fichiers, alors que personne
+# n'a rien modifié.
+#
+# `eol=lf` force les fichiers à rester en LF sur toutes les plateformes, ce qui
+# rend le résultat de la vérification identique en local et en intégration
+# continue.
+* text=auto eol=lf
+
+# Les binaires ne doivent subir aucune conversion : la remplacer corromprait
+# les images et les polices.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ttf binary
+*.otf binary
+*.ico binary
+
+# Les fichiers de verrouillage sont générés par l'outil : les renormaliser
+# produirait un diff illisible à chaque installation.
+package-lock.json -text
