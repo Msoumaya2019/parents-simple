@@ -168,9 +168,43 @@ une base qui n'existe pas.
 21 vérifications, dont **aucune ne modifie la base** — les appels aux fonctions
 sont choisis pour échouer avant toute insertion.
 
-Il exige une configuration et ne fait donc pas partie de `npm run verify`, qui
-doit tourner sans aucun secret. Le flux Android l'exécute avant de compiler : on
-ne produit pas un APK pour une base ouverte.
+### Confronter l'application à la base réelle
+
+```bash
+npm run verifier:requetes
+```
+
+Le contrôle précédent vérifie ce qu'un inconnu ne peut **pas** faire. Celui-ci
+vérifie ce que l'application **fait**. Les deux moitiés comptent autant l'une que
+l'autre, et les défaillances ne se ressemblent pas : une table ouverte se voit
+dans le premier, tandis qu'une colonne renommée dans le schéma ne se voit que
+dans le second.
+
+Ce qui rend ce défaut-là coûteux, c'est **où** il apparaît. Une colonne mal
+orthographiée, un filtre sur un type incompatible, un nom de table mal
+orthographié donnent un `400` que le code transforme en message d'erreur — ou,
+si l'erreur est avalée, en onglet vide. Aucun test unitaire ne le voit, puisque
+les tests simulent la base. Sans ce contrôle, on l'apprend sur le téléphone d'un
+parent, après installation.
+
+Les requêtes sont **extraites** de `src/services/*.ts` plutôt que recopiées :
+un service ajouté demain entre dans l'analyse sans qu'on ait à y penser. Un
+garde-fou vérifie que l'analyse ne perd pas silencieusement un fichier.
+
+Il vérifie aussi le compartiment de stockage `documents` : son absence rendrait
+tous les liens de documents morts, et aucune table ne le signalerait.
+
+> **Ce qui reste non vérifié.** Les chemins de **succès** de `voter` et
+> `envoyer_message` ne sont éprouvés nulle part : `securite:api` ne teste que
+> leurs refus. Les éprouver demande un sondage ouvert et un message réellement
+> déposé, donc des écritures. Tant que ce complément n'existe pas, un `voter`
+> cassé ne se manifesterait qu'au moment du premier sondage. À écrire avant de
+> s'appuyer sur les sondages.
+
+Les deux contrôles exigent une configuration et ne font donc pas partie de
+`npm run verify`, qui doit tourner sans aucun secret. **Les deux flux de travail
+les exécutent avant de compiler** : on ne produit ni un APK ni un IPA pour une
+base ouverte, ni pour une base que l'application ne sait pas interroger.
 
 ---
 
