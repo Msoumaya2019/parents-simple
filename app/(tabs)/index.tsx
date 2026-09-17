@@ -31,7 +31,7 @@ import { AnnonceCard } from '@/components/AnnonceCard';
 import { AnnonceEnAvant } from '@/components/AnnonceEnAvant';
 import { BanniereAccueil } from '@/components/BanniereAccueil';
 import { SondageAccueil } from '@/components/SondageAccueil';
-import { AppText, EmptyState, ErrorNotice, LoadingView, Screen } from '@/components/ui';
+import { EmptyState, ErrorNotice, LoadingView, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRafraichissement } from '@/hooks/useRafraichissement';
 import { listerAnnonces } from '@/services/annonces';
@@ -69,10 +69,9 @@ export default function AccueilScreen(): React.JSX.Element {
     [router],
   );
 
-  // Les deux valeurs dérivées sont calculées ici, avant l'en-tête : `entete`
-  // consulte `annonces.length` pour décider s'il affiche le titre de section, et
-  // une `const` déclarée plus bas serait en zone morte temporelle au moment de
-  // cette lecture.
+  // Les valeurs dérivées des deux chargements. Calculées une fois, avant
+  // l'en-tête et les branches de rendu : les recalculer dans chacune serait
+  // autant d'occasions de diverger.
   const annonces = etat.statut === 'succes' ? etat.donnees : [];
 
   // Un sondage déjà clôturé ne mérite pas une invitation : le parent ne pourrait
@@ -87,7 +86,11 @@ export default function AccueilScreen(): React.JSX.Element {
   const marge = { paddingHorizontal: theme.spacing.lg };
 
   const entete = (
-    <View>
+    // La marge basse est posée ici et non sur la grille : l'écart entre deux
+    // cartes vient d'`ItemSeparatorComponent`, qui ne s'applique ni avant la
+    // première ni après la dernière. Sans cette ligne, la grille de raccourcis
+    // et la première actualité se toucheraient.
+    <View style={{ paddingBottom: theme.spacing.md }}>
       <BanniereAccueil
         pleineLargeur
         surTitre="École Frères Lumières"
@@ -138,12 +141,6 @@ export default function AccueilScreen(): React.JSX.Element {
           />
         </View>
       </View>
-
-      {annonces.length > 0 ? (
-        <View style={[marge, { marginTop: theme.spacing.lg }]}>
-          <AppText variant="title">Dernières actualités</AppText>
-        </View>
-      ) : null}
     </View>
   );
 
