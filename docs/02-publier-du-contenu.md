@@ -4,6 +4,17 @@ Tout se fait depuis le **tableau de bord Supabase**, section **Table Editor**.
 Il n'y a pas d'interface d'administration à apprendre : chaque table correspond
 à une rubrique de l'application.
 
+> **L'adresse du tableau de bord** — le projet s'appelle `parents-simple-cli` :
+> <https://supabase.com/dashboard/project/toksjxrrgvgovbolcjvr>
+> L'éditeur SQL directement :
+> <https://supabase.com/dashboard/project/toksjxrrgvgovbolcjvr/sql/new>
+
+> **À ne pas confondre** avec `https://toksjxrrgvgovbolcjvr.supabase.co`, qui est
+> l'adresse de l'**API** — celle que porte l'application pour lire les données.
+> L'ouvrir dans un navigateur répond `{"error":"requested path is invalid"}` :
+> c'est normal, la racine de l'API n'expose aucune page à consulter. Ce message
+> prouve même l'inverse de ce qu'il a l'air de dire — le projet répond.
+
 > Après chaque ajout ou modification, appuyer sur **Save**. La table est mise à
 > jour immédiatement, et les téléphones la voient au prochain chargement de
 > l'écran concerné — il suffit de tirer vers le bas sur l'écran Accueil.

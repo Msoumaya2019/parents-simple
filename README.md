@@ -77,7 +77,8 @@ continue de vérifier le code sans aucun secret.
 
 ### Où trouver les valeurs
 
-Tableau de bord Supabase → **Project Settings** → **API** :
+Le tableau de bord : <https://supabase.com/dashboard/project/toksjxrrgvgovbolcjvr>
+(projet `parents-simple-cli`). Puis **Project Settings** → **API** :
 
 | Valeur du tableau de bord | Variable                        |
 | ------------------------- | ------------------------------- |
