@@ -1,0 +1,329 @@
+# =============================================================================
+#  Android — APK
+# =============================================================================
+#
+#  Produit un APK installable directement sur un téléphone Android.
+#
+#  POURQUOI L'APK EST LE MEILLEUR MOYEN D'ESSAYER L'APPLICATION
+#  -----------------------------------------------------------
+#  Un APK s'installe sans Mac, sans compte développeur et sans re-signature :
+#  contrairement à iOS, Android accepte les applications auto-signées. C'est
+#  donc la voie la plus courte pour voir l'application tourner sur un vrai
+#  téléphone.
+#
+#  LA SIGNATURE, ET CE QU'IL FAUT EN SAVOIR
+#  ----------------------------------------
+#  Expo configure le type de compilation `release` pour qu'il soit signé avec
+#  la clé de DÉBOGAGE fournie par le modèle React Native. Conséquence directe :
+#  `assembleRelease` produit un `app-release.apk` déjà signé, donc installable
+#  immédiatement. C'est ce qui rend ce workflow utile sans aucune configuration.
+#
+#  Mais cette clé de débogage est publique et identique pour tout le monde.
+#  Deux conséquences, à connaître avant de distribuer cet APK :
+#
+#    - la mise à jour est impossible : passer plus tard à une vraie clé de
+#      signature ferait refuser l'installation par Android, qui considère qu'il
+#      s'agit d'une autre application. Il faudrait désinstaller, et perdre les
+#      données locales ;
+#    - n'importe qui peut produire un APK portant la même signature. Cela
+#      n'installe rien à distance — Android n'installe jamais sans une action
+#      de l'utilisateur — mais un APK diffusé hors des canaux officiels ne
+#      devrait jamais être accepté sans vérification.
+#
+#  Autrement dit : cet APK sert à valider l'application, pas à la distribuer
+#  aux familles. La procédure de création d'une clé de signature est décrite
+#  dans `docs/04-installer-sur-android.md`.
+#
+#  SIGNER AVEC UNE VRAIE CLÉ
+#  -------------------------
+#  Quatre secrets suffisent — `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+#  `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` — et l'APK est signé avec cette
+#  clé plutôt qu'avec la clé de débogage. Sans eux, le workflow continue de
+#  produire un APK signé avec la clé de débogage, et un avertissement le
+#  rappelle dans le résumé : la compilation reste utilisable à tout moment.
+#
+#  Une configuration PARTIELLE échoue au lieu de continuer. Mieux vaut une
+#  erreur visible tout de suite qu'un APK qu'on croit signé et qui ne l'est
+#  pas — le défaut n'apparaîtrait qu'au refus d'une mise à jour, des mois plus
+#  tard, sans qu'on sache pourquoi.
+#
+#  DÉCLENCHEMENT MANUEL
+#  --------------------
+#  Une première compilation Gradle prend une vingtaine de minutes. La lancer à
+#  chaque poussée serait un gaspillage : `ci.yml` vérifie déjà le code.
+#
+#  Utilisation : Actions → Android — APK → Run workflow
+# =============================================================================
+
+name: Android — APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  construire:
+    name: Construire l'APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      # Les variables `EXPO_PUBLIC_*` sont INLINÉES dans le paquet JavaScript au
+      # moment du bundling, qui a lieu pendant la compilation Gradle. Elles
+      # doivent donc être présentes au niveau du travail, et non seulement
+      # pendant la génération du projet natif.
+      #
+      # Sans elles, l'APK se compile parfaitement, s'installe, et n'affiche
+      # aucune donnée : le défaut ne se voit qu'après installation.
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_NO_TELEMETRY: '1'
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v5
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22.22.2'
+          cache: npm
+
+      - name: Installer Java
+        # Gradle 9, utilisé par ce projet, exige au minimum Java 17. Java 21 est
+        # retenu : c'est la version recommandée par React Native, et elle est
+        # rétrocompatible avec les projets qui ciblent Java 17.
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Installer le SDK Android
+        # `@v4` est requis : la version 3 tente d'installer le paquet « tools »,
+        # retiré du dépôt Android, et échoue systématiquement.
+        #
+        # La liste de paquets est précisée parce que « tools » figure dans les
+        # valeurs par défaut de l'action, alors qu'il n'existe plus. Sans cette
+        # précision, l'installation s'arrête avant la première compilation.
+        #
+        # Les plateformes manquantes sont téléchargées par Gradle lui-même : les
+        # exécuteurs de GitHub ont déjà accepté les licences.
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier la configuration Supabase
+        # Un APK compilé sans configuration s'ouvre sur un écran d'explication.
+        # L'utilisateur conclurait que l'application est cassée, alors que c'est
+        # la compilation qui est incomplète.
+        run: |
+          manquant=0
+
+          if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
+            echo "::error::Le secret SUPABASE_URL n'est pas configuré."
+            manquant=1
+          fi
+
+          if [ -z "$EXPO_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Le secret SUPABASE_ANON_KEY n'est pas configuré."
+            manquant=1
+          fi
+
+          if [ "$manquant" -eq 1 ]; then
+            echo ""
+            echo "Ajoutez-les dans Settings → Secrets and variables → Actions."
+            echo "Ils se trouvent dans le tableau de bord Supabase, section Project Settings → API."
+            exit 1
+          fi
+
+          echo "Configuration présente."
+
+      - name: Vérifier le code avant de compiler
+        # Un binaire qui compile n'est pas un binaire juste. Ces contrôles
+        # prennent deux minutes là où la compilation en prend vingt.
+        run: |
+          npm run workflows:check
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run sql:check
+
+      - name: Générer le projet Android
+        # `android/` n'est pas versionné : il est recréé ici. C'est ce qui permet
+        # au dépôt de rester sans configuration de signature, et d'éviter les
+        # conflits à chaque mise à jour d'Expo.
+        run: npx expo prebuild --platform android --clean
+
+      - name: Configurer la signature de release
+        id: signature
+        # Les secrets sont déclarés ici, au niveau de l'étape, et non du travail :
+        # ils ne sont ainsi exposés qu'aux commandes qui en ont besoin.
+        #
+        # `scripts/configurer-signature-android.py` relit le fichier après
+        # écriture et refuse de continuer si la bascule n'a pas eu lieu. Sans ce
+        # contrôle, un changement de modèle d'Expo produirait un APK signé avec
+        # la clé de débogage, et rien ne le signalerait.
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "signature=debug" >> "$GITHUB_OUTPUT"
+            echo "::warning::Aucune clé de signature fournie : l'APK sera signé avec la clé de débogage, et les mises à jour seront refusées. Voir docs/04-installer-sur-android.md."
+            exit 0
+          fi
+
+          python3 scripts/configurer-signature-android.py android
+
+          # Gradle lit ce chemin depuis l'environnement (voir la fonction
+          # `System.getenv` injectée dans app/build.gradle). Chemin absolu : le
+          # fichier de projet Gradle vit dans `android/app/`, et un chemin
+          # relatif s'y résoudrait de travers.
+          echo "ANDROID_KEYSTORE_PATH=$PWD/android/app/release.keystore" >> "$GITHUB_ENV"
+          echo "signature=release" >> "$GITHUB_OUTPUT"
+
+      - name: Compiler l'APK
+        working-directory: android
+        # `--no-daemon` : sans lui, le processus Gradle reste en vie après la
+        # compilation et peut saturer la mémoire de l'exécuteur.
+        # `--stacktrace` : en cas d'échec, la pile complète est bien plus utile
+        # que le message résumé, souvent trompeur sur les problèmes d'Android.
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Repérer et renommer l'APK
+        id: apk
+        run: |
+          # Le nom produit par Expo est `app-release.apk`. Un fichier nommé
+          # ainsi, téléchargé puis retrouvé trois semaines plus tard dans un
+          # dossier de téléchargements, ne dit plus de quelle application il
+          # s'agit ni de quelle version.
+          SOURCE=$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)
+
+          if [ -z "$SOURCE" ]; then
+            echo "::error::Aucun APK n'a été produit."
+            find android/app/build/outputs -type f | head -n 30
+            exit 1
+          fi
+
+          echo "APK produit : $SOURCE"
+          ls -lh "$SOURCE"
+
+          DESTINATION="freres-lumieres-parents.apk"
+          cp "$SOURCE" "$DESTINATION"
+          echo "chemin=$DESTINATION" >> "$GITHUB_OUTPUT"
+
+      - name: Vérifier que l'APK contient la configuration
+        # C'est le contrôle qui compte : un APK compilé sans les variables
+        # d'environnement s'installe parfaitement et n'affiche rien. Le défaut
+        # ne se voit que sur le téléphone, après installation.
+        run: |
+          if ! unzip -p freres-lumieres-parents.apk assets/index.android.bundle 2>/dev/null | grep -q "supabase.co"; then
+            echo "::error::Le paquet ne contient pas l'adresse de la base de données."
+            echo "Les variables EXPO_PUBLIC_* n'ont pas été prises en compte au moment du bundling."
+            exit 1
+          fi
+          echo "L'adresse de la base est bien présente dans le paquet."
+
+      - name: Vérifier la signature de l'APK
+        # C'est ici que le mode annoncé est confronté à la réalité du fichier.
+        # Les deux autres contrôles — la relecture par le script, et le fait que
+        # Gradle ait accepté la configuration — ne disent rien de la clé qui a
+        # réellement signé l'APK. Celui-ci le dit.
+        env:
+          MODE: ${{ steps.signature.outputs.signature }}
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort | tail -n 1)
+
+          if [ -z "$APKSIGNER" ]; then
+            echo "::error::apksigner introuvable : la signature de l'APK n'a pas pu être vérifiée."
+            exit 1
+          fi
+
+          CERTIFICATS=$("$APKSIGNER" verify --print-certs freres-lumieres-parents.apk)
+          echo "$CERTIFICATS" | head -n 8
+
+          if echo "$CERTIFICATS" | grep -q "CN=Android Debug"; then
+            SIGNATAIRE="debug"
+          else
+            SIGNATAIRE="release"
+          fi
+
+          echo "signataire détecté : $SIGNATAIRE / mode demandé : $MODE"
+
+          if [ "$MODE" != "$SIGNATAIRE" ]; then
+            echo "::error::La clé utilisée ne correspond pas à la configuration demandée."
+            echo "Attendu : $MODE — obtenu : $SIGNATAIRE."
+            echo "La substitution dans android/app/build.gradle n'a donc pas pris effet."
+            exit 1
+          fi
+
+          if [ "$SIGNATAIRE" = "debug" ]; then
+            echo "::warning::APK signé avec la clé de débogage : utilisable pour essayer, impossible à mettre à jour ensuite."
+          fi
+
+      - name: Publier l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ${{ steps.apk.outputs.chemin }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Résumé
+        env:
+          MODE: ${{ steps.signature.outputs.signature }}
+        run: |
+          {
+            echo "### APK produit"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Fichier | \`freres-lumieres-parents.apk\` |"
+            echo "| Taille | $(du -h freres-lumieres-parents.apk | cut -f1) |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+
+            if [ "$MODE" = "release" ]; then
+              echo "| Signature | clé de release fournie |"
+            else
+              echo "| Signature | clé de débogage |"
+            fi
+
+            echo ""
+            echo "#### Installation"
+            echo ""
+            echo "Transférer l'APK sur le téléphone, puis l'ouvrir. Android demande"
+            echo "d'autoriser l'installation depuis cette source — c'est normal pour"
+            echo "une application qui ne vient pas du Play Store."
+            echo ""
+
+            if [ "$MODE" = "release" ]; then
+              echo "#### Signature"
+              echo ""
+              echo "Cet APK est signé avec votre clé de release. Conservez le fichier"
+              echo "de clé et ses mots de passe : sans eux, aucune mise à jour ne"
+              echo "pourra plus être installée par-dessus celle-ci."
+            else
+              echo "#### Avertissement"
+              echo ""
+              echo "Cet APK est signé avec la clé de débogage d'Expo, publique et"
+              echo "identique pour tout le monde. Il sert à valider l'application, pas"
+              echo "à la distribuer : les mises à jour seront refusées tant qu'une vraie"
+              echo "clé de signature n'aura pas été créée. Voir"
+              echo "\`docs/04-installer-sur-android.md\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

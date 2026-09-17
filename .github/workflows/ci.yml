@@ -9,6 +9,10 @@
 #  Aucune de ces étapes n'est redondante, et chacune détecte une classe de
 #  défaut que les autres laissent passer :
 #
+#    workflows:check  un flux de travail invalide : YAML mal formé, action non
+#                  épinglée, ou script `run:` dont la syntaxe est fausse. Placé
+#                  en premier parce qu'il coûte deux secondes et qu'il évite de
+#                  découvrir le défaut après vingt minutes de compilation.
 #    format:check  deux personnes formatant différemment produisent un diff
 #                  illisible, où la modification réelle se perd.
 #    lint          un crochet appelé conditionnellement : plantage garanti sur
@@ -67,6 +71,12 @@ jobs:
       # divergé. C'est précisément la divergence qu'on veut voir en CI.
       - name: Installer les dépendances
         run: npm ci
+
+      # En premier : deux secondes, et il attrape les défauts de flux de travail
+      # qui, sinon, ne se verraient qu'après l'installation du SDK Android et
+      # vingt minutes de compilation.
+      - name: Contrôler les flux de travail
+        run: npm run workflows:check
 
       - name: Vérifier le formatage
         run: npm run format:check

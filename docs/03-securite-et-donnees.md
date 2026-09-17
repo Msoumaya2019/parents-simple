@@ -207,3 +207,20 @@ l'importance de compléter la section « Responsable de traitement » de
    erreur** sur une table de contenu. C'est le seul angle mort connu du
    contrôle, et la raison pour laquelle toute modification de
    `supabase/migrations/` mérite une relecture humaine.
+
+6. **`npm audit` signale quatorze vulnérabilités modérées qui ne concernent pas
+   l'application livrée.** Deux avis distincts, tous deux dans la chaîne
+   d'outillage d'Expo : `decode-uri-component` (déni de service par décodage
+   exponentiel d'une entrée mal formée, atteint via `expo-router` →
+   `query-string`) et `uuid` (absence de contrôle de bornes en v3/v5/v6, via
+   `expo-splash-screen`).
+
+   Cela a été **vérifié dans le paquet réel**, et non supposé : le paquet Hermes
+   exporté ne contient aucune occurrence des chaînes `decode-uri-component`,
+   `query-string` ni `strict-uri-encode`, alors qu'il contient bien `supabase`
+   (77 occurrences), `expo-router` (12) et `AsyncStorage` (7). Le code vulnérable
+   n'est donc pas embarqué — il n'existe que sur la machine de compilation.
+
+   **Ne pas lancer `npm audit fix --force`** : npm propose de rétrograder
+   `expo-router` de la version 57 à la 5.1.11, ce qui casserait le projet. La
+   correction ne peut venir que d'une mise à jour d'Expo.

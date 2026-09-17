@@ -53,8 +53,13 @@ appliquées là où un client modifié ne peut pas les contourner.
 | Xcode          | 16+               | Simulateur iOS — macOS uniquement            |
 | Android Studio | SDK 35+           | Émulateur Android                            |
 
-Rien n'est nécessaire pour compiler un IPA : la compilation se fait sur GitHub,
-voir [`docs/01-installer-sur-iphone.md`](docs/01-installer-sur-iphone.md).
+Rien n'est nécessaire pour compiler : les deux plateformes se compilent sur
+GitHub.
+
+| Plateforme  | Produit                                        | Document                                                               |
+| ----------- | ---------------------------------------------- | ---------------------------------------------------------------------- |
+| **iPhone**  | IPA non signé, à signer soi-même               | [`docs/01-installer-sur-iphone.md`](docs/01-installer-sur-iphone.md)   |
+| **Android** | APK installable directement, sans re-signature | [`docs/04-installer-sur-android.md`](docs/04-installer-sur-android.md) |
 
 ---
 
@@ -113,14 +118,15 @@ npm run verify
 
 Enchaîne, dans cet ordre :
 
-| Commande                 | Ce qu'elle attrape                                       |
-| ------------------------ | -------------------------------------------------------- |
-| `npm run format:check`   | Deux formats concurrents, qui noient le vrai diff        |
-| `npm run lint`           | Un crochet conditionnel : plantage sur le téléphone      |
-| `npm run typecheck`      | Un champ renommé d'un seul côté                          |
-| `npm test`               | La logique de dates, où un jour de décalage ne lève rien |
-| `npm run sql:check`      | Une table sans RLS, ou une lecture accordée par mégarde  |
-| `npm run export:android` | Un module qui ne se résout pas dans le paquet            |
+| Commande                  | Ce qu'elle attrape                                       |
+| ------------------------- | -------------------------------------------------------- |
+| `npm run workflows:check` | Un flux de travail invalide, découvert en vingt minutes  |
+| `npm run format:check`    | Deux formats concurrents, qui noient le vrai diff        |
+| `npm run lint`            | Un crochet conditionnel : plantage sur le téléphone      |
+| `npm run typecheck`       | Un champ renommé d'un seul côté                          |
+| `npm test`                | La logique de dates, où un jour de décalage ne lève rien |
+| `npm run sql:check`       | Une table sans RLS, ou une lecture accordée par mégarde  |
+| `npm run export:android`  | Un module qui ne se résout pas dans le paquet            |
 
 > **Sous Windows, `npm run verify` peut échouer à la dernière étape** avec
 > `SAFE_DELETE_BULK_CONFIRM_REQUIRED`. Ce n'est pas un défaut du projet :
@@ -128,10 +134,16 @@ Enchaîne, dans cet ordre :
 > l'environnement local intercepte les suppressions de plus de cinquante
 > fichiers par tour de commande. Le contournement est de déplacer le dossier
 > plutôt que de le supprimer — `mv dist "$TEMP/fl-dist"` — puis de relancer.
-> Les cinq premières étapes, elles, ne sont pas concernées.
+> Les étapes précédentes, elles, ne sont pas concernées.
 
-Les deux derniers méritent une explication, car ils ne sont pas ordinaires :
+Trois d'entre eux méritent une explication, car ils ne sont pas ordinaires :
 
+- **`workflows:check`** analyse les fichiers de `.github/workflows`, vérifie que
+  chaque action est épinglée à une version, et passe chaque script `run:` à
+  `bash -n`. Il est placé en premier parce qu'il coûte deux secondes et qu'il
+  évite de découvrir une faute de frappe après l'installation du SDK Android.
+  L'APK ne peut pas être compilé sur cette machine — Java 8, pas de SDK — donc
+  chaque erreur de flux de travail se paie en allers-retours.
 - **`sql:check`** lit les migrations et vérifie que chaque table active la RLS,
   que ses privilèges sont révoqués puis accordés explicitement, et que les deux
   tables sensibles — `messages` et `sondage_votes` — restent fermées au rôle
