@@ -106,14 +106,40 @@ if (URL_BASE === '' || CLE === '') {
  */
 function verifierRoleDeLaCle() {
   const parties = CLE.split('.');
+
   if (parties.length !== 3) {
-    // Les clés récentes de Supabase (`sb_publishable_…`) ne sont pas des JWT.
+    // Les clés récentes de Supabase ne sont pas des JWT. Une seule forme est
+    // acceptable ici : `sb_publishable_…`.
+    //
+    // Le contrôle porte sur ce préfixe EXACT, et surtout pas sur `sb_` — ce
+    // qu'il faisait auparavant. `sb_secret_…` commence par `sb_` lui aussi :
+    // l'ancienne condition acceptait donc la clé de service en annonçant « la
+    // clé n'est pas une clé de service », et les vingt vérifications suivantes
+    // devenaient vertes pour de mauvaises raisons. C'est exactement ce que
+    // l'en-tête de ce script interdit : si la clé contourne la RLS, tout ce qui
+    // suit ne prouve rien.
+    //
+    // Mesuré avant correction, avec `sb_secret_FAUSSE` :
+    //   [OK] la clé n'est pas une clé de service — rôle non vérifiable
+    //
+    // Tout ce qui n'est ni un JWT ni une clé publiable est donc REFUSÉ, et non
+    // toléré. Une forme inconnue ne permet pas d'affirmer quoi que ce soit sur
+    // les droits qu'elle porte, et un contrôle qui ne peut rien affirmer doit
+    // échouer — pas passer.
+    const publiable = CLE.startsWith('sb_publishable_');
+
+    // On nomme le sous-type plutôt que de recopier la clé : un message de
+    // journal ne doit jamais recopier un secret, même tronqué.
+    const sousType = CLE.match(/^sb_([a-z]+)_/)?.[1] ?? null;
+
     journaliser(
-      "la clé n'est pas une clé de service",
-      CLE.startsWith('sb_publishable_') || CLE.startsWith('sb_'),
-      CLE.startsWith('sb_publishable_')
+      'la clé utilisée est la clé publique',
+      publiable,
+      publiable
         ? 'clé publiable récente'
-        : 'format de clé non reconnu — rôle non vérifiable',
+        : sousType === null
+          ? 'forme de clé non reconnue — refusé'
+          : `sous-type « ${sousType} » non publiable — refusé`,
     );
     return;
   }

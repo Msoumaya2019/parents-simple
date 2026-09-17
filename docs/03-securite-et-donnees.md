@@ -164,9 +164,9 @@ APK peut réellement faire :
 | `voter` avec un sondage inexistant         | refuse                         |
 | `envoyer_message` avec un sujet vide       | refuse, sans rien insérer      |
 | `set_updated_at`, `verifier_vote_coherent` | non exposées                   |
-| La clé utilisée                            | porte le rôle `anon`           |
+| La clé utilisée                            | est la clé publique            |
 
-Deux points de conception :
+Trois points de conception :
 
 - **Une table fermée doit répondre « interdit », pas « liste vide ».** Un 200
   avec `[]` signifierait que le privilège de lecture a été accordé et que seule
@@ -176,11 +176,26 @@ Deux points de conception :
   pour échouer avant toute insertion : un sondage inexistant pour `voter`, un
   sujet vide pour `envoyer_message`. Le contrôle ne dépose jamais un message
   d'essai dans la boîte du bureau.
+- **Une clé non reconnue fait échouer le contrôle, elle ne le laisse pas
+  passer.** C'est la règle la moins visible et la plus importante : tout ce qui
+  suit ne vaut que si la clé utilisée est bien la clé publique. Une forme
+  inconnue ne permet pas d'affirmer quoi que ce soit sur les droits qu'elle
+  porte — et un contrôle qui ne peut rien affirmer doit échouer. Le préfixe
+  accepté est `sb_publishable_` **exactement**, jamais `sb_` : `sb_secret_…`
+  porte le même début, et l'accepter reviendrait à déclarer « cette clé n'est
+  pas une clé de service » sur la clé de service elle-même.
 
 Le contrôle a lui aussi été éprouvé, contre un serveur simulant PostgREST : base
 correcte → vert ; `messages` lisible, écritures autorisées, fonction exposée
 manquante, sujet vide accepté, clé `service_role` fournie → échec dans les cinq
 cas, avec le message attendu.
+
+Le contrôle de forme de la clé a été éprouvé séparément, sur cinq formes.
+`sb_publishable_…` et un JWT au rôle `anon` franchissent cette étape ; `sb_secret_…`,
+`sbp_…` et un JWT au rôle `service_role` la font échouer. Avant correction,
+`sb_secret_…` la franchissait — en annonçant « la clé n'est pas une clé de
+service » et « rôle non vérifiable », c'est-à-dire en passant tout en avouant
+n'avoir rien pu vérifier.
 
 Le flux Android l'exécute avant de compiler : on ne produit pas un APK pour une
 base ouverte.
