@@ -10,18 +10,42 @@
  * décrit autre chose que le code est pire que pas de politique du tout, parce
  * qu'elle donne une garantie fausse.
  *
- * LES DEUX CHAMPS À COMPLÉTER SONT SIGNALÉS
- * -----------------------------------------
- * Le nom et les coordonnées du responsable de traitement ne peuvent pas être
- * devinés. Ils sont donc marqués visiblement, plutôt que remplis d'un texte
- * plausible qui serait faux — un parent qui exerce ses droits doit écrire au
- * bon endroit.
+ * LES TROIS VALEURS À COMPLÉTER SONT SIGNALÉES
+ * --------------------------------------------
+ * Le nom, le siège et l'adresse de contact du responsable de traitement ne
+ * peuvent pas être devinés. Tant qu'ils manquent, la page affiche un
+ * avertissement à leur place, plutôt qu'un texte plausible qui serait faux — un
+ * parent qui exerce ses droits doit écrire au bon endroit, et une adresse
+ * inventée est pire que pas d'adresse.
+ *
+ * Une seule chose à faire : remplir l'objet `RESPONSABLE`, plus bas.
  */
 
 import { StyleSheet, View } from 'react-native';
 
 import { AppText, Card, Pill, Screen } from '@/components/ui';
 import { useTheme } from '@/providers/theme-provider';
+
+/**
+ * Les coordonnées du responsable de traitement.
+ *
+ * À remplir avant de distribuer l'application. Ces trois valeurs figurent dans
+ * les statuts de l'association et ne peuvent pas être devinées : tant qu'une
+ * seule manque, la page affiche l'avertissement plutôt qu'un texte à moitié
+ * rempli, qui aurait l'air complet sans l'être.
+ *
+ * Aucun autre endroit du code n'a besoin d'être touché : la page choisit
+ * d'elle-même entre l'avertissement et les coordonnées.
+ */
+const RESPONSABLE = {
+  nom: '',
+  siege: '',
+  courriel: '',
+} as const;
+
+/** Vrai tant qu'il manque au moins une des trois valeurs. */
+const RESPONSABLE_INCOMPLET =
+  RESPONSABLE.nom === '' || RESPONSABLE.siege === '' || RESPONSABLE.courriel === '';
 
 interface SectionProps {
   readonly titre: string;
@@ -138,16 +162,32 @@ export default function ConfidentialiteScreen(): React.JSX.Element {
       </Section>
 
       <Section titre="Responsable de traitement">
-        <Card style={{ borderColor: theme.colors.warning }}>
-          <AppText variant="label" color="danger">
-            À compléter avant la mise à disposition
-          </AppText>
-          <AppText variant="caption" color="muted" style={styles.espace}>
-            Le nom officiel de l’association, l’adresse de son siège et l’adresse e-mail à laquelle
-            un parent peut écrire pour exercer ses droits doivent être renseignés ici. Ces
-            informations figurent dans les statuts de l’association.
-          </AppText>
-        </Card>
+        {RESPONSABLE_INCOMPLET ? (
+          <Card style={{ borderColor: theme.colors.warning }}>
+            <AppText variant="label" color="danger">
+              À compléter avant la mise à disposition
+            </AppText>
+            <AppText variant="caption" color="muted" style={styles.espace}>
+              Le nom officiel de l’association, l’adresse de son siège et l’adresse e-mail à
+              laquelle un parent peut écrire pour exercer ses droits ne sont pas encore renseignés.
+              Ces informations figurent dans les statuts de l’association.
+            </AppText>
+            <AppText variant="caption" color="muted" style={styles.espace}>
+              Pour les compléter : remplir l’objet `RESPONSABLE` en tête de ce fichier. Cette page
+              basculera d’elle-même sur les coordonnées réelles.
+            </AppText>
+          </Card>
+        ) : (
+          <Card>
+            <AppText variant="label">{RESPONSABLE.nom}</AppText>
+            <AppText variant="caption" color="muted" style={styles.espace}>
+              {RESPONSABLE.siege}
+            </AppText>
+            <AppText variant="caption" color="muted" style={styles.espace}>
+              {RESPONSABLE.courriel}
+            </AppText>
+          </Card>
+        )}
       </Section>
 
       <View style={{ height: theme.spacing.xxl }} />

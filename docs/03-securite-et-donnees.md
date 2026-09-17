@@ -225,8 +225,9 @@ mesure d'audience, aucune publicité, aucun tiers.
 
 Désinstaller l'application efface immédiatement les données locales. Pour un
 message envoyé au bureau, la demande se fait auprès de l'association — d'où
-l'importance de compléter la section « Responsable de traitement » de
-`app/confidentialite.tsx` **avant toute mise à disposition**.
+l'importance de remplir l'objet `RESPONSABLE`, en tête de
+`app/confidentialite.tsx`, **avant toute mise à disposition** — la page affiche
+un avertissement bien visible tant que les trois valeurs manquent.
 
 ---
 

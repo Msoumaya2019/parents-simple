@@ -281,6 +281,8 @@ un identifiant unique permettrait de relier un message signé au vote du même
 appareil. Ce sont des données pseudonymes au sens du RGPD, déclarées comme
 telles dans l'écran Confidentialité de l'application.
 
-> **Avant toute mise à disposition**, compléter la section « Responsable de
-> traitement » de `app/confidentialite.tsx` : nom de l'association, adresse du
-> siège et adresse de contact. Ces informations figurent dans les statuts.
+> **Avant toute mise à disposition**, remplir l'objet `RESPONSABLE` en tête de
+> `app/confidentialite.tsx` : nom de l'association, adresse du siège et adresse
+> de contact. Ces informations figurent dans les statuts. La page bascule
+> d'elle-même de l'avertissement vers les coordonnées dès que les trois valeurs
+> sont renseignées.
