@@ -1,6 +1,20 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
-  }
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    // `expo/tsconfig.base` fixe `customConditions: ["react-native"]`, ce qui
+    // empêche la découverte automatique des paquets `@types`. Sans cette ligne,
+    // les tests ne compilent pas : TypeScript ne trouve pas `node:test` ni
+    // `node:assert` et propose d'installer `@types/node`, qui est pourtant
+    // déjà installé.
+    "types": ["node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules", "dist", ".expo"]
 }

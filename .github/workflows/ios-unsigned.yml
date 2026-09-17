@@ -1,0 +1,256 @@
+# =============================================================================
+#  iOS — IPA non signé
+# =============================================================================
+#
+#  Produit un IPA NON SIGNÉ, à installer après l'avoir signé soi-même sur son
+#  propre appareil.
+#
+#  POURQUOI NON SIGNÉ, ET CE QUE CELA IMPLIQUE
+#  -------------------------------------------
+#  Signer un IPA exige un certificat Apple et un profil de provisionnement.
+#  Ce sont des secrets, et ce dépôt est public : aucun certificat, aucun mot de
+#  passe, aucun profil n'y est stocké. La signature est donc faite localement,
+#  sur la machine du parent qui installe, au moment de l'installation.
+#
+#  Conséquence pratique, à connaître avant de distribuer ce fichier :
+#
+#    - un IPA non signé NE S'INSTALLE PAS tel quel sur un iPhone. Il faut le
+#      re-signer, par exemple avec Sideloadly ou AltStore, en utilisant un
+#      identifiant Apple. Avec un compte Apple gratuit, l'application cesse de
+#      fonctionner au bout de sept jours et doit être réinstallée ;
+#    - une signature avec un compte développeur Apple (99 € par an) donne une
+#      validité d'un an, ce qui est le seul moyen confortable pour une
+#      association ;
+#    - la distribution à des tiers passe normalement par TestFlight et l'App
+#      Store, qui demandent tous deux un compte développeur.
+#
+#  Autrement dit : cet artefact sert à essayer l'application et à la valider,
+#  pas à la distribuer aux familles.
+#
+#  DÉCLENCHEMENT MANUEL
+#  --------------------
+#  Un build iOS natif prend une quinzaine de minutes et consomme un exécuteur
+#  macOS, facturé plus cher que Linux sur GitHub. Le lancer à chaque poussée
+#  serait un gaspillage : la majorité des commits ne mérite pas un binaire.
+#
+#  Utilisation : Actions → iOS — IPA non signé → Run workflow
+#  Ou en poussant un tag de version, par exemple `v0.1.0`.
+# =============================================================================
+
+name: iOS — IPA non signé
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ios-unsigned-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  construire:
+    name: Construire l'IPA non signé
+    # macos-15 et non macos-14 : Expo SDK 57 demande Xcode 16, absent de
+    # l'image précédente. Le build échouerait à l'étape de compilation, avec un
+    # message peu explicite.
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    env:
+      # Les variables `EXPO_PUBLIC_*` sont INLINÉES dans le paquet JavaScript
+      # au moment du bundling, qui a lieu pendant la compilation Xcode. Elles
+      # doivent donc être présentes ici, au niveau du travail, et non seulement
+      # pendant la génération du projet natif.
+      #
+      # La clé « anon » de Supabase n'est pas un secret : elle est extractible
+      # de n'importe quel binaire publié, et sa portée est entièrement définie
+      # par les politiques RLS du schéma. Elle est tout de même placée en
+      # secret du dépôt, pour que le dépôt reste vierge de toute valeur et que
+      # le remplacement d'un projet Supabase ne demande pas de modification de
+      # code.
+      #
+      # La clé « service_role » ne doit JAMAIS être placée ici : elle contourne
+      # la RLS et donnerait à quiconque l'extrait le droit de lire les messages
+      # adressés au bureau.
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_NO_TELEMETRY: '1'
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v5
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22.22.2'
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier la configuration Supabase
+        # Message explicite plutôt qu'un binaire silencieusement inutilisable :
+        # une application compilée sans configuration s'ouvre sur un écran
+        # d'explication, et l'utilisateur conclurait que l'application est
+        # cassée alors que c'est le build qui est incomplet.
+        run: |
+          manquant=0
+
+          if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
+            echo "::error::Le secret SUPABASE_URL n'est pas configuré."
+            manquant=1
+          fi
+
+          if [ -z "$EXPO_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Le secret SUPABASE_ANON_KEY n'est pas configuré."
+            manquant=1
+          fi
+
+          if [ "$manquant" -eq 1 ]; then
+            echo ""
+            echo "Ajoutez-les dans Settings → Secrets and variables → Actions."
+            echo "Ils se trouvent dans le tableau de bord Supabase, section Project Settings → API."
+            exit 1
+          fi
+
+          echo "Configuration présente."
+
+      - name: Vérifier le code avant de compiler
+        # Un binaire qui compile n'est pas un binaire juste. Ces contrôles
+        # prennent deux minutes là où le build en prend quinze, et ils attrapent
+        # ce que la compilation laisse passer — notamment une table sans RLS.
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run sql:check
+
+      - name: Générer le projet iOS
+        # `ios/` n'est pas versionné : il est recréé ici, à chaque compilation.
+        # C'est ce qui permet au dépôt de rester sans configuration de signature.
+        #
+        # `--clean` efface un éventuel dossier existant. Sans lui, une
+        # modification de `app.json` — un identifiant, une permission — pourrait
+        # ne pas être reprise, et le binaire ne correspondrait pas au code.
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Repérer le projet et le schéma
+        id: cible
+        # Le nom du projet Xcode est dérivé du nom de l'application, qui est en
+        # français et accentué. Le deviner serait fragile : on demande donc à
+        # Xcode ce qu'il a produit, plutôt que de reconstruire la règle de
+        # nommage d'Expo — qui n'est pas documentée comme un contrat stable.
+        run: |
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)
+
+          if [ -z "$WORKSPACE" ]; then
+            # Sans CocoaPods, Expo produit un simple projet Xcode. On prend ce
+            # qui existe plutôt que de supposer.
+            PROJET=$(find ios -maxdepth 1 -name '*.xcodeproj' | head -n 1)
+            if [ -z "$PROJET" ]; then
+              echo "::error::Aucun projet Xcode n'a été généré par expo prebuild."
+              exit 1
+            fi
+            echo "cible=-project $PROJET" >> "$GITHUB_OUTPUT"
+            SCHEME=$(xcodebuild -project "$PROJET" -list -json | python3 -c "import json,sys; print(json.load(sys.stdin)['project']['schemes'][0])")
+          else
+            echo "cible=-workspace $WORKSPACE" >> "$GITHUB_OUTPUT"
+            SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import json,sys; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          fi
+
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "Projet : $WORKSPACE$PROJET"
+          echo "Schéma : $SCHEME"
+
+      - name: Compiler sans signature
+        working-directory: ios
+        run: |
+          # Les quatre réglages sont nécessaires ensemble. `CODE_SIGNING_ALLOWED=NO`
+          # suffit souvent, mais Xcode retombe sur une identité par défaut dans
+          # certains cas, et l'échec est alors un message de trousseau de clés
+          # difficile à relier à sa cause.
+          xcodebuild \
+            ${{ steps.cible.outputs.cible }} \
+            -scheme "${{ steps.cible.outputs.scheme }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            build
+
+      - name: Empaqueter l'IPA
+        # Un IPA n'est qu'une archive ZIP contenant un dossier `Payload/`, qui
+        # contient lui-même l'application `.app`. C'est toute la structure
+        # attendue — il n'y a pas de manifeste ni d'en-tête à produire.
+        run: |
+          APP=$(find ios/build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -n 1)
+
+          if [ -z "$APP" ]; then
+            echo "::error::Aucune application compilée n'a été trouvée."
+            find ios/build/Build/Products -maxdepth 2 -type d | head -n 30
+            exit 1
+          fi
+
+          echo "Application compilée : $APP"
+
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry freres-lumieres-parents-non-signe.ipa Payload
+          rm -rf Payload
+
+          echo ""
+          ls -lh freres-lumieres-parents-non-signe.ipa
+          echo ""
+          echo "Contenu de l'archive :"
+          unzip -l freres-lumieres-parents-non-signe.ipa | head -n 15
+
+      - name: Vérifier que le paquet contient la configuration
+        # Un IPA produit sans les variables d'environnement se compile
+        # parfaitement et s'installe, mais n'affiche aucune donnée. Le défaut ne
+        # se voit qu'après installation, sur un téléphone. On vérifie donc ici
+        # que l'adresse de la base figure bien dans le paquet JavaScript.
+        run: |
+          if ! unzip -p freres-lumieres-parents-non-signe.ipa 'Payload/*.app/main.jsbundle' 2>/dev/null | grep -q "supabase.co"; then
+            echo "::error::Le paquet ne contient pas l'adresse de la base de données."
+            echo "Les variables EXPO_PUBLIC_* n'ont pas été prises en compte au moment du bundling."
+            exit 1
+          fi
+          echo "L'adresse de la base est bien présente dans le paquet."
+
+      - name: Publier l'IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-non-signe
+          path: freres-lumieres-parents-non-signe.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Résumé
+        run: |
+          {
+            echo "### IPA non signé produit"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Fichier | \`freres-lumieres-parents-non-signe.ipa\` |"
+            echo "| Taille | $(du -h freres-lumieres-parents-non-signe.ipa | cut -f1) |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+            echo ""
+            echo "#### Installation sur un iPhone"
+            echo ""
+            echo "Cet IPA n'est pas signé : il ne s'installe pas directement."
+            echo "Il doit d'abord être signé avec un identifiant Apple, par exemple"
+            echo "avec Sideloadly ou AltStore. La procédure complète est décrite dans"
+            echo "\`docs/01-installer-sur-iphone.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"

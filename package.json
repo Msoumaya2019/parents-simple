@@ -1,22 +1,59 @@
 {
-  "name": "2026-09-17-12-31-27",
-  "version": "1.0.0",
-  "main": "index.ts",
-  "dependencies": {
-    "expo": "~57.0.23",
-    "expo-status-bar": "~57.0.1",
-    "react": "19.2.3",
-    "react-native": "0.86.3"
-  },
-  "devDependencies": {
-    "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+  "name": "freres-lumieres-parents",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application d'information pour les parents des écoles maternelle et élémentaire Frères Lumières (Montmagny).",
+  "license": "UNLICENSED",
+  "main": "expo-router/entry",
+  "engines": {
+    "node": ">=22.0.0 <23.0.0"
   },
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}\"",
+    "sql:check": "node scripts/check-sql.mjs",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-alias.mjs --test",
+    "export:android": "expo export --platform android",
+    "export:ios": "expo export --platform ios",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run sql:check && npm run export:android"
   },
-  "private": true
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.116.0",
+    "expo": "~57.0.23",
+    "expo-constants": "~57.0.18",
+    "expo-crypto": "~57.0.3",
+    "expo-font": "~57.0.4",
+    "expo-linking": "~57.0.10",
+    "expo-router": "~57.0.21",
+    "expo-splash-screen": "~57.0.9",
+    "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-url-polyfill": "^4.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.3",
+    "@types/react": "~19.2.2",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.7",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.0"
+  }
 }

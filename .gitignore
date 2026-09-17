@@ -31,6 +31,10 @@ yarn-error.*
 *.pem
 
 # local env files
+# `.env` est ignoré sans exception : les variables `EXPO_PUBLIC_*` finissent en
+# clair dans le paquet compilé, mais le fichier qui les contient n'a pas à être
+# versionné pour autant — il porte aussi les valeurs d'un éventuel autre projet.
+.env
 .env*.local
 
 # typescript
@@ -39,3 +43,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# artefacts de compilation
+*.ipa
+*.apk
+*.aab
+Payload/
+
+# Journal de travail et notes de projet : hors du code livré, et sans intérêt
+# pour quiconque clone le dépôt.
+.workbuddy-ai/

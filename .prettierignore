@@ -1,0 +1,14 @@
+# Fichiers que Prettier ne doit pas toucher.
+#
+# `.workbuddy-ai/` contient le journal de travail et les notes de projet. Ce
+# sont des fichiers de travail, pas des livrables : les reformater produit des
+# différences qui polluent chaque relecture sans rien apporter.
+.workbuddy-ai/
+
+node_modules/
+dist/
+.expo/
+android/
+ios/
+
+package-lock.json

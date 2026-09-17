@@ -465,27 +465,42 @@ create trigger sondage_votes_verifier_coherence
 --  apparaître à zéro. Avec une jointure interne, elle disparaîtrait de
 --  l'affichage, et un parent ne pourrait plus voter pour elle — précisément
 --  celle que personne n'a encore choisie.
-create or replace function public.sondage_resultats(p_sondage_id uuid)
-returns table (choix_id uuid, libelle text, position integer, votes bigint)
+--
+--  POURQUOI LA FONCTION PREND UN TABLEAU D'IDENTIFIANTS
+--  ---------------------------------------------------
+--  L'onglet Plus affiche plusieurs sondages à la fois. Une fonction n'acceptant
+--  qu'un seul identifiant aurait imposé un appel par sondage : sur une
+--  connexion mobile médiocre, l'écran se remplirait par morceaux, chaque
+--  sondage apparaissant après une attente séparée. Une seule requête pour
+--  l'ensemble donne un affichage complet d'un coup.
+create or replace function public.sondage_resultats(p_sondage_ids uuid[])
+returns table (
+  sondage_id uuid,
+  choix_id   uuid,
+  libelle    text,
+  position   integer,
+  votes      bigint
+)
 language sql
 stable
 security definer
 set search_path = ''
 as $$
   select
+    c.sondage_id,
     c.id,
     c.libelle,
     c.position,
     count(v.id)
   from public.sondage_choix c
   left join public.sondage_votes v on v.choix_id = c.id
-  where c.sondage_id = p_sondage_id
-  group by c.id, c.libelle, c.position
-  order by c.position, c.libelle;
+  where c.sondage_id = any (p_sondage_ids)
+  group by c.sondage_id, c.id, c.libelle, c.position
+  order by c.sondage_id, c.position, c.libelle;
 $$;
 
-revoke all on function public.sondage_resultats(uuid) from public, authenticated;
-grant execute on function public.sondage_resultats(uuid) to anon;
+revoke all on function public.sondage_resultats(uuid[]) from public, authenticated;
+grant execute on function public.sondage_resultats(uuid[]) to anon;
 
 
 --  ---------------------------------------------------------------------------
