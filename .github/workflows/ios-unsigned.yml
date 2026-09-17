@@ -147,30 +147,59 @@ jobs:
         # français et accentué. Le deviner serait fragile : on demande donc à
         # Xcode ce qu'il a produit, plutôt que de reconstruire la règle de
         # nommage d'Expo — qui n'est pas documentée comme un contrat stable.
+        #
+        # Le schéma, lui, ne peut PAS être pris au hasard dans la liste. Sur un
+        # espace de travail CocoaPods, `xcodebuild -list` énumère aussi les
+        # schémas des pods, et le premier est `EXConstants` — alphabétiquement
+        # avant celui de l'application. Le prendre compilait un pod : le build
+        # réussissait sans produire d'application à empaqueter. Le schéma de
+        # l'application porte le nom de son `.xcodeproj` : c'est celui-là qu'on
+        # cherche, et on refuse de compiler si on ne le trouve pas.
         run: |
-          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)
+          PROJET_APP=$(find ios -maxdepth 1 -name '*.xcodeproj' | head -n 1)
 
-          if [ -z "$WORKSPACE" ]; then
-            # Sans CocoaPods, Expo produit un simple projet Xcode. On prend ce
-            # qui existe plutôt que de supposer.
-            PROJET=$(find ios -maxdepth 1 -name '*.xcodeproj' | head -n 1)
-            if [ -z "$PROJET" ]; then
-              echo "::error::Aucun projet Xcode n'a été généré par expo prebuild."
-              exit 1
-            fi
-            echo "cible=-project $PROJET" >> "$GITHUB_OUTPUT"
-            SCHEME=$(xcodebuild -project "$PROJET" -list -json | python3 -c "import json,sys; print(json.load(sys.stdin)['project']['schemes'][0])")
-          else
-            echo "cible=-workspace $WORKSPACE" >> "$GITHUB_OUTPUT"
-            SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import json,sys; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          if [ -z "$PROJET_APP" ]; then
+            echo "::error::Aucun projet Xcode n'a été généré par expo prebuild."
+            exit 1
           fi
 
+          # `FrresLumiresParents.xcodeproj` → `FrresLumiresParents`. Expo retire
+          # les accents pour nommer le projet ; peu importe ici, puisqu'on lit
+          # ce qui a été réellement produit.
+          SCHEME=$(basename "$PROJET_APP" .xcodeproj)
+
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)
+
+          if [ -n "$WORKSPACE" ]; then
+            CIBLE="-workspace $WORKSPACE"
+            SCHEMAS=$(xcodebuild -workspace "$WORKSPACE" -list -json \
+              | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['workspace']['schemes']))")
+          else
+            CIBLE="-project $PROJET_APP"
+            SCHEMAS=$(xcodebuild -project "$PROJET_APP" -list -json \
+              | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['project']['schemes']))")
+          fi
+
+          if ! printf '%s\n' "$SCHEMAS" | grep -Fqx "$SCHEME"; then
+            echo "::error::Le schéma « $SCHEME » est absent de la liste des schémas."
+            echo "Schémas proposés :"
+            printf '%s\n' "$SCHEMAS"
+            exit 1
+          fi
+
+          echo "cible=$CIBLE" >> "$GITHUB_OUTPUT"
           echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
-          echo "Projet : $WORKSPACE$PROJET"
+          echo "Projet : $PROJET_APP"
+          echo "Cible  : $CIBLE"
           echo "Schéma : $SCHEME"
 
       - name: Compiler sans signature
-        working-directory: ios
+        # Pas de `working-directory: ios` ici. Les chemins produits par l'étape
+        # de repérage sont relatifs à la racine du dépôt ; les exécuter depuis
+        # `ios/` les préfixait une seconde fois — `ios/ios/…` — et xcodebuild
+        # répondait « does not exist » pour un espace de travail que le repérage
+        # venait de trouver. Le dossier de compilation reste dans `ios/build`,
+        # là où l'étape d'empaquetage le cherche.
         run: |
           # Les quatre réglages sont nécessaires ensemble. `CODE_SIGNING_ALLOWED=NO`
           # suffit souvent, mais Xcode retombe sur une identité par défaut dans
@@ -181,7 +210,7 @@ jobs:
             -scheme "${{ steps.cible.outputs.scheme }}" \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath build \
+            -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
