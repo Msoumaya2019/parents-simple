@@ -25,9 +25,11 @@
  * `client().from('table').select(COLONNES)…`, il rejoue la requête équivalente
  * en HTTP contre PostgREST et exige un 200.
  *
- * Il vérifie aussi le compartiment de stockage : un compartiment absent rend
- * tous les liens de documents morts, et rien dans le schéma des tables ne le
- * signale.
+ * Il vérifie aussi les compartiments de stockage nommés par le code : un
+ * compartiment absent rend tous les liens de documents morts, et rien dans le
+ * schéma des tables ne le signale. Leur **nom** est extrait comme le reste — une
+ * version antérieure le portait en dur, et aurait donc laissé passer un
+ * renommage, en sondant un compartiment disparu.
  *
  * CE QU'IL NE VÉRIFIE PAS — À SAVOIR AVANT DE LIRE UN VERT
  * --------------------------------------------------------
