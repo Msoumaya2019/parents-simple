@@ -41,8 +41,11 @@ Sur GitHub, dans le dépôt :
 2. laisser la branche sur `main`, puis **Run workflow**.
 
 La compilation prend une quinzaine de minutes. Elle vérifie d'abord le code
-(formatage, analyse, types, tests, schéma de la base) avant de compiler : un
-binaire qui compile n'est pas un binaire juste.
+(formatage, analyse, types, tests, schéma de la base), puis **éprouve la base
+réelle** avec la même clé que celle embarquée dans l'application — ce qu'un
+inconnu ne peut pas y faire, et ce que l'application doit pouvoir y lire. Un
+binaire qui compile n'est pas un binaire juste, et un binaire juste n'est pas
+encore un binaire qui affiche quelque chose.
 
 ### Configurer les deux secrets, une seule fois
 
@@ -121,10 +124,11 @@ d'Expo pourrait ne plus prendre en charge un module natif utilisé ici.
 
 ## En cas de problème
 
-| Symptôme                                                  | Cause probable                                                                                                                                           |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Unable to install » dans Sideloadly                     | Un profil de développeur existe déjà pour cette application, avec un autre identifiant Apple. Le supprimer dans Réglages → VPN et gestion de l'appareil. |
-| L'application s'ouvre puis affiche un écran d'explication | Les secrets `SUPABASE_URL` ou `SUPABASE_ANON_KEY` étaient absents au moment de la compilation. Le workflow le signale pourtant avant de compiler.        |
-| L'application cesse de fonctionner après une semaine      | Comportement normal d'un compte Apple gratuit. Re-signer avec Sideloadly, sans réinstaller.                                                              |
-| Le workflow échoue à `xcodebuild`                         | Vérifier que `runs-on` vaut bien `macos-15` : Expo SDK 57 exige Xcode 16.                                                                                |
-| L'écran Confidentialité est vide                          | Les variables d'environnement n'ont pas été prises en compte. Voir la table ci-dessus.                                                                   |
+| Symptôme                                                  | Cause probable                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| « Unable to install » dans Sideloadly                     | Un profil de développeur existe déjà pour cette application, avec un autre identifiant Apple. Le supprimer dans Réglages → VPN et gestion de l'appareil.                                                                                                                                                                                       |
+| L'application s'ouvre puis affiche un écran d'explication | Les secrets `SUPABASE_URL` ou `SUPABASE_ANON_KEY` étaient absents au moment de la compilation. Le workflow le signale pourtant avant de compiler.                                                                                                                                                                                              |
+| L'application cesse de fonctionner après une semaine      | Comportement normal d'un compte Apple gratuit. Re-signer avec Sideloadly, sans réinstaller.                                                                                                                                                                                                                                                    |
+| Le workflow échoue à `xcodebuild`                         | Vérifier que `runs-on` vaut `macos-26`. Expo SDK 57 tire `expo-modules-jsi`, qui déclare `swift-tools-version: 6.2` dans son `apple/Package.swift` : cette version de Swift n'arrive qu'avec Xcode 26. `macos-15` — Xcode 16.4, Swift 6.1 — échoue à la résolution des dépendances. Le workflow vérifie la chaîne d'outils et le dit lui-même. |
+| Tous les onglets sont vides                               | La base ne contient encore aucun contenu. Les écrans affichent alors un message explicite (« Aucune actualité pour le moment »), et non une erreur. Voir [`02-publier-du-contenu.md`](02-publier-du-contenu.md).                                                                                                                               |
+| L'écran Confidentialité est vide                          | Les variables d'environnement n'ont pas été prises en compte. Voir la table ci-dessus.                                                                                                                                                                                                                                                         |
