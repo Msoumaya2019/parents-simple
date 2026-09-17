@@ -144,7 +144,13 @@ export function BarreOnglets({
             }
             accessibilityLargeContentTitle={libelle}
             accessibilityShowsLargeContentViewer
-            style={styles.onglet}
+            // La barre par défaut accompagnait chaque appui d'une ondulation sur
+            // Android ; réécrire la barre l'avait fait disparaître. On reprend
+            // ici la convention du projet — `Card` ternit la sienne de la même
+            // façon —, qui vaut sur les deux plateformes. Sans elle, appuyer
+            // sur l'onglet DÉJÀ actif ne change rien à l'écran : le geste semble
+            // n'avoir pas été enregistré.
+            style={({ pressed }) => [styles.onglet, pressed && styles.ongletAppuye]}
           >
             <View
               style={[
@@ -186,6 +192,11 @@ const styles = StyleSheet.create({
     // fixe : elle serait fausse sur l'un des formats d'iPhone.
     flex: 1,
     justifyContent: 'center',
+  },
+  ongletAppuye: {
+    // Même valeur que `Card.pressee` : deux composants qui s'estompent
+    // différemment à l'appui se liraient comme deux applications.
+    opacity: 0.75,
   },
   pastille: {
     alignItems: 'center',

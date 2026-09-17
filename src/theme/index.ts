@@ -128,10 +128,24 @@ export interface ThemeRadii {
  * système — deux appareils côte à côte ne montraient alors pas la même
  * application.
  *
- * `boxShadow` lève cette objection. React Native le prend en charge sur les
+ * `boxShadow` lève cette objection : React Native le prend en charge sur les
  * deux plateformes depuis la 0.76, et ce projet tourne sous la nouvelle
- * architecture (`newArchEnabled: true`). Une ombre très légère redevient donc
- * une décision tenable, et non un pari sur la version d'Android.
+ * architecture (`newArchEnabled: true`). Il en garde une autre, plus étroite,
+ * qu'il vaut mieux connaître que découvrir sur un téléphone :
+ *
+ *   - une ombre EXTÉRIEURE n'est dessinée sur Android qu'à partir de l'API 28
+ *     (Android 9). `OutsetBoxShadowDrawable.kt` déclare
+ *     `MIN_OUTSET_BOX_SHADOW_SDK_VERSION = 28`, et `BackgroundStyleApplicator`
+ *     ne construit le drawable que sous cette condition, sans branche de repli.
+ *     En dessous, la propriété est ignorée — sans erreur, sans trace ;
+ *   - `minSdkVersion` vaut 24 (`ExpoModulesCorePlugin.gradle`) : Android 7 et 8
+ *     restent donc installables.
+ *
+ * Conséquence : sur Android 7 et 8, les cartes n'ont pas d'ombre. Elles gardent
+ * leur filet de contour, qui suffit à les détacher du fond — l'ombre est un
+ * agrément, pas ce qui les rend lisibles. Relever `minSdkVersion` à 28
+ * écarterait ces téléphones ; c'est un choix de produit, pas de mise en page,
+ * et il n'est pas tranché ici.
  *
  * La valeur est une chaîne, pas un objet : c'est la forme que `boxShadow`
  * accepte, et elle se lit comme en CSS.
