@@ -11,6 +11,9 @@ export type MessageCategorie = 'cantine' | 'transport' | 'vie_scolaire' | 'activ
 
 export type DocumentCategorie = 'administratif' | 'scolarite' | 'cantine' | 'activites' | 'autre';
 
+/** La nature d'une actualité, qui décide de sa pastille sur l'accueil. */
+export type AnnonceCategorie = 'actualite' | 'cantine' | 'agenda' | 'a_venir' | 'association';
+
 /** Une actualité du fil d'accueil. */
 export interface Annonce {
   readonly id: string;
@@ -19,6 +22,17 @@ export interface Annonce {
   /** Une annonce épinglée reste en tête du fil, quel que soit son âge. */
   readonly epinglee: boolean;
   readonly publieeLe: string;
+  readonly categorie: AnnonceCategorie;
+  /**
+   * Adresse d'une image, ou `null`.
+   *
+   * Deux formes sont acceptées, et `src/services/annonces.ts` les distingue :
+   * une adresse complète (`https://…`), ou un chemin dans le compartiment
+   * `annonces`. Le type ne peut pas exprimer cette différence — les deux sont
+   * des chaînes — d'où ce commentaire, qui est le seul endroit où elle est
+   * écrite.
+   */
+  readonly imageUrl: string | null;
 }
 
 /** Le menu d'un jour de service. */

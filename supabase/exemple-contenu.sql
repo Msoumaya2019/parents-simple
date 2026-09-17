@@ -52,11 +52,22 @@
 --  ---------------------------------------------------------------------------
 --  `publiee_le` n'est pas fourni : la table le remplit avec la date du jour, ce
 --  qui place ces actualités en tête du fil, du plus récent au plus ancien.
-insert into public.annonces (id, titre, corps, epinglee, publiee_le) values
+--
+--  Les trois catégories sont choisies pour montrer les trois pastilles
+--  différentes de l'accueil : « Important » pour l'épinglée, « À venir » et
+--  « Cantine » pour les deux suivantes. `image_url` reste vide : aucune image
+--  n'a été déposée dans le compartiment `annonces`, et une adresse qui ne
+--  pointe vers rien ne montrerait qu'une vignette en échec.
+--
+--  Le conflit met à jour la catégorie au lieu de ne rien faire : une base qui
+--  avait déjà reçu ces lignes avant l'ajout de la colonne doit pouvoir les
+--  reprendre, sans quoi elle resterait avec « Actualité » partout.
+insert into public.annonces (id, titre, corps, categorie, epinglee, publiee_le) values
   (
     'a1000000-0000-4000-8000-000000000001',
     'Bienvenue sur l''application des parents',
     E'Cette application rassemble les informations utiles au quotidien : les actualités de l''école, les menus de la cantine, les dates à retenir, et un moyen simple de joindre le bureau de l''association.\n\nElle ne demande aucun compte et ne collecte rien sur vous. Vous pouvez la prêter à un autre parent sans rien laisser derrière vous.',
+    'actualite',
     true,
     now()
   ),
@@ -64,6 +75,7 @@ insert into public.annonces (id, titre, corps, epinglee, publiee_le) values
     'a1000000-0000-4000-8000-000000000002',
     'Photo de classe : jeudi 24 septembre',
     E'La photo de classe aura lieu le jeudi 24 septembre au matin.\n\nLes enfants peuvent venir habillés comme ils le souhaitent. Les parents qui ne souhaitent pas que leur enfant soit photographié sont invités à le signaler à l''enseignant avant cette date.',
+    'a_venir',
     false,
     now() - interval '2 days'
   ),
@@ -71,10 +83,11 @@ insert into public.annonces (id, titre, corps, epinglee, publiee_le) values
     'a1000000-0000-4000-8000-000000000003',
     'Menus de septembre en ligne',
     E'Les menus de la cantine pour la semaine du 21 septembre sont disponibles dans l''onglet Cantine.\n\nLes allergènes sont indiqués pour chaque plat. En cas de régime particulier, contactez le bureau de l''association depuis l''onglet Contact.',
+    'cantine',
     false,
     now() - interval '5 days'
   )
-on conflict do nothing;
+on conflict (id) do update set categorie = excluded.categorie;
 
 
 --  ---------------------------------------------------------------------------

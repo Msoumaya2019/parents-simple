@@ -2,9 +2,19 @@
  * Carte.
  *
  * L'unité visuelle de l'application : une actualité, un menu, un événement, un
- * document. Le contour est un filet et non une ombre portée — sur Android, une
- * ombre est rendue différemment selon la version du système, et deux appareils
- * côte à côte ne montrent alors pas la même application.
+ * document.
+ *
+ * POURQUOI LE FILET *ET* L'OMBRE
+ * ------------------------------
+ * Le contour seul ne suffisait plus : sur un fond gris très clair, une carte
+ * blanche bordée d'un filet pâle se lit comme un cadre, pas comme un objet
+ * posé sur la page. L'ombre très légère ajoutée ici détache la carte sans la
+ * mettre en scène.
+ *
+ * Le filet reste, et ce n'est pas un doublon : c'est lui qui porte le contour
+ * quand l'ombre ne se voit pas — en mode sombre, ou sur un écran de mauvaise
+ * qualité. Voir `ThemeElevation` pour la raison technique qui rend l'ombre
+ * acceptable aujourd'hui alors qu'elle était évitée auparavant.
  */
 
 import type { ReactNode } from 'react';
@@ -35,8 +45,9 @@ export function Card({
   const fond = {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border,
-    borderRadius: theme.radii.lg,
+    borderRadius: theme.radii.xl,
     padding: theme.spacing.lg,
+    boxShadow: theme.elevation.carte,
     opacity: attenuee ? 0.6 : 1,
   };
 

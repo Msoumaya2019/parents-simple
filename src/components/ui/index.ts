@@ -4,6 +4,8 @@ export { Button } from '@/components/ui/Button';
 export type { ButtonVariant } from '@/components/ui/Button';
 export { Card } from '@/components/ui/Card';
 export { EmptyState, ErrorNotice, LoadingView } from '@/components/ui/etats';
+export { ImageDistante } from '@/components/ui/ImageDistante';
+export { LienAction } from '@/components/ui/LienAction';
 export { Pill } from '@/components/ui/Pill';
 export type { PillTon } from '@/components/ui/Pill';
 export { Screen } from '@/components/ui/Screen';

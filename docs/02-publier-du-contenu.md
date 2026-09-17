@@ -53,20 +53,78 @@ Ce n'est **pas** une migration : il n'est pas dans `supabase/migrations/`, et
 
 ## Actualités — table `annonces`
 
-Onglet **Accueil**.
+Onglet **Accueil**. Chaque ligne devient une carte du fil.
 
-| Colonne      | À remplir                                                |
-| ------------ | -------------------------------------------------------- |
-| `titre`      | Le titre, 160 caractères au maximum                      |
-| `corps`      | Le texte complet. Les retours à la ligne sont conservés  |
-| `epinglee`   | `true` pour garder l'actualité en tête du fil            |
-| `publiee_le` | Laisser vide : la date du jour est posée automatiquement |
+| Colonne      | À remplir                                                                  |
+| ------------ | -------------------------------------------------------------------------- |
+| `titre`      | Le titre, 160 caractères au maximum                                        |
+| `corps`      | Le texte complet. Les retours à la ligne sont conservés                    |
+| `categorie`  | La rubrique : `actualite`, `cantine`, `agenda`, `a_venir` ou `association` |
+| `image_url`  | Facultatif — l'illustration de la carte (voir plus bas)                    |
+| `epinglee`   | `true` pour garder l'actualité en tête du fil                              |
+| `publiee_le` | Laisser vide : la date du jour est posée automatiquement                   |
+
+**La première actualité reçoit une carte plus grande.** Le fil est trié par la
+base — les épinglées d'abord, puis des plus récentes aux plus anciennes — et
+c'est cette première ligne qui est mise en avant, avec son image à côté du
+texte. Il n'y a pas de réglage à poser : épingler une actualité la fait passer
+en avant, et publier une actualité sans en épingler aucune met la plus récente
+en avant.
 
 **Quand épingler ?** Pour une information qui concerne tout le monde
 aujourd'hui — fermeture d'école, grève de cantine, changement d'horaires. Une
 actualité épinglée reste en tête du fil quel que soit son âge, et porte la
 mention « Important ». En abuser vide le procédé de son sens : ne pas dépasser
 une ou deux à la fois.
+
+### La catégorie
+
+Elle s'affiche en pastille au-dessus du titre, avec sa couleur et son icône.
+Elle ne change pas l'ordre du fil : c'est une indication pour le parent qui
+balaie l'écran du regard, pas un classement.
+
+| Valeur        | Affiché     | Pour quoi                             |
+| ------------- | ----------- | ------------------------------------- |
+| `actualite`   | Actualité   | La valeur par défaut                  |
+| `cantine`     | Cantine     | Menus, changements de service         |
+| `agenda`      | Agenda      | Dates, réunions, sorties              |
+| `a_venir`     | À venir     | Ce qui approche sans être encore daté |
+| `association` | Association | La vie de l'association de parents    |
+
+Une actualité **épinglée** affiche « Important » à la place de sa catégorie.
+Deux pastilles côte à côte se liraient mal, et « Important » est alors
+l'information la plus utile des deux.
+
+### L'illustration
+
+`image_url` accepte deux formes :
+
+- **un nom de fichier** déposé dans le compartiment `annonces` — le cas normal,
+  décrit ci-dessous ;
+- **une adresse complète** commençant par `http`, si l'image est déjà hébergée
+  ailleurs.
+
+Pour déposer une image : Tableau de bord → **Storage** → compartiment `annonces`
+→ **Upload file**, puis recopier le nom du fichier dans `image_url`, **tel
+quel**. Formats acceptés : JPEG, PNG, WebP, AVIF. Taille maximale : 5 Mo.
+
+Le compartiment est **public en lecture**, comme celui des documents : une photo
+où un enfant serait reconnaissable et nommé n'y a pas sa place. Une vue de
+l'école, une illustration ou une assiette de cantine ne posent pas de question ;
+une liste de noms en pose une.
+
+**Sans image, rien n'est cassé.** Une vignette pastel portant l'icône de la
+catégorie prend la place de la photo. C'est l'état de toutes les actualités tant
+qu'aucune image n'a été déposée, et l'application reste parfaitement lisible —
+il n'y a rien à faire pour cela.
+
+Deux conseils de cadrage :
+
+- **l'image est recadrée au centre** pour remplir sa vignette. Un sujet collé à
+  un bord — un visage en bas à droite — peut disparaître. Cadrer large ;
+- **une image en paysage vaut mieux qu'en portrait.** La vignette du fil est
+  carrée, celle de la carte mise en avant est un rectangle plus large. Une photo
+  de paysage s'en sort dans les deux cas.
 
 ---
 

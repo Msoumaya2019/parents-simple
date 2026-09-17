@@ -15,24 +15,32 @@
  * façon par tout le monde. Le mot lève l'ambiguïté pour un coût dérisoire, et
  * c'est aussi ce qui rend les onglets utilisables par un lecteur d'écran.
  *
- * La hauteur de la barre additionne une base et la marge basse du thème : sur
- * un iPhone à encoche, l'indicateur d'accueil recouvre le bas de la barre, et
- * sans cette marge le libellé se retrouve sous la barre gestuelle.
+ * POURQUOI LA BARRE EST FOURNIE PAR L'APPLICATION
+ * -----------------------------------------------
+ * `tabBar` remplace la barre par défaut, qui ne sait pas dessiner la pastille
+ * arrondie de la maquette. Le raisonnement est dans `BarreOnglets`. Conséquence
+ * à connaître : les options `tabBarStyle`, `tabBarActiveTintColor`,
+ * `tabBarInactiveTintColor` et `tabBarLabelStyle` ne sont PLUS lues par
+ * personne, et les laisser ici donnerait à croire qu'on peut régler l'apparence
+ * depuis ce fichier. L'apparence se règle dans `BarreOnglets`, l'identité des
+ * onglets ici.
+ *
+ * POURQUOI `expo-router/js-tabs` ET NON `expo-router`
+ * ---------------------------------------------------
+ * L'export `Tabs` de la racine est marqué déprécié en SDK 57 ; `js-tabs` est le
+ * même navigateur, et il expose en plus le type `BottomTabBarProps` et le
+ * contexte de hauteur dont la barre a besoin. C'est aussi ce qui évite
+ * d'importer un chemin interne au paquet.
  */
 
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { Tabs } from 'expo-router/js-tabs';
 
-import { useTheme } from '@/providers/theme-provider';
+import { BarreOnglets, type IconesOnglet, type IconesOnglets } from '@/components/BarreOnglets';
 
-type NomIcone = keyof typeof Ionicons.glyphMap;
-
-interface Onglet {
+interface Onglet extends IconesOnglet {
+  /** Nom du fichier dans `app/(tabs)/`, tel que le routeur le présente. */
   readonly nom: string;
   readonly titre: string;
-  readonly icone: NomIcone;
-  readonly iconeActive: NomIcone;
 }
 
 const ONGLETS: readonly Onglet[] = [
@@ -43,44 +51,26 @@ const ONGLETS: readonly Onglet[] = [
   { nom: 'plus', titre: 'Plus', icone: 'ellipsis-horizontal', iconeActive: 'ellipsis-horizontal' },
 ];
 
-export default function TabsLayout(): React.JSX.Element {
-  const { theme } = useTheme();
+/**
+ * Les icônes, indexées par nom de route. La barre reçoit `route.name`, pas
+ * l'ordre de ce tableau : c'est ce qui lui permet de retrouver l'icône de
+ * chaque onglet sans dépendre de leur position.
+ */
+const ICONES: IconesOnglets = Object.fromEntries(
+  ONGLETS.map(({ nom, icone, iconeActive }) => [nom, { icone, iconeActive }]),
+);
 
+export default function TabsLayout(): React.JSX.Element {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          height: 58 + theme.spacing.md,
-          paddingTop: theme.spacing.sm,
-          paddingBottom: theme.spacing.md,
-        },
-        tabBarLabelStyle: {
-          fontSize: theme.typography.size.xs,
-          fontWeight: theme.typography.weight.medium,
-        },
-      }}
+      tabBar={(props) => <BarreOnglets {...props} icones={ICONES} />}
+      screenOptions={{ headerShown: false }}
     >
       {ONGLETS.map((onglet) => (
         <Tabs.Screen
           key={onglet.nom}
           name={onglet.nom}
-          options={{
-            title: onglet.titre,
-            tabBarAccessibilityLabel: onglet.titre,
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? onglet.iconeActive : onglet.icone}
-                color={color}
-                size={size}
-              />
-            ),
-          }}
+          options={{ title: onglet.titre, tabBarAccessibilityLabel: onglet.titre }}
         />
       ))}
     </Tabs>

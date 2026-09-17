@@ -112,9 +112,19 @@ npx supabase link --project-ref <référence-du-projet>
 npx supabase db push
 ```
 
-Ou, sans la ligne de commande : copier le contenu de
-`supabase/migrations/20260917120000_init.sql` dans l'éditeur SQL du tableau de
-bord.
+Ou, sans la ligne de commande : coller **chaque fichier** de
+`supabase/migrations/`, **dans l'ordre de leur nom**, dans l'éditeur SQL du
+tableau de bord, et exécuter chacun avant de passer au suivant.
+
+> **Il ne suffit pas de coller le premier.** `20260917120000_init.sql` crée les
+> tables ; les fichiers suivants ajoutent des colonnes que l'application lit —
+> la catégorie et l'image d'une actualité, par exemple. Une base arrêtée au
+> premier fichier répond, mais l'onglet Accueil reste vide : la requête demande
+> des colonnes qui n'existent pas, et PostgREST refuse la lecture entière plutôt
+> que de rendre les colonnes connues.
+
+Tous les fichiers sont écrits pour pouvoir être rejoués : les relancer sur une
+base à jour ne produit ni erreur ni doublon.
 
 ---
 
@@ -128,6 +138,38 @@ Pour essayer l'application avant de saisir le vrai contenu,
 [`supabase/exemple-contenu.sql`](supabase/exemple-contenu.sql) remplit chaque
 table de quelques lignes réalistes — dont un sondage ouvert, ce qui permet
 d'éprouver le seul chemin que les contrôles automatiques ne couvrent pas : voter.
+
+---
+
+## Personnaliser la bannière de l'accueil
+
+La bannière de l'écran Accueil est **dessinée par l'application** : un dégradé de
+ciel, un soleil et quelques feuilles, aux couleurs du thème. Elle ne contient
+aucune photographie, et c'est volontaire — le dépôt est public, et une photo
+d'école qui y serait déposée le resterait dans l'historique Git, même retirée
+ensuite.
+
+Pour y mettre une photo de l'école, déposer le fichier sous
+`assets/banniere-ecole.jpg`, puis remplacer la constante en tête de
+[`src/components/BanniereAccueil.tsx`](src/components/BanniereAccueil.tsx) :
+
+```ts
+const PHOTO_BANNIERE: ImageSourcePropType | null = require('../../assets/banniere-ecole.jpg');
+```
+
+Trois précautions, par ordre d'importance :
+
+- **choisir une photo sans visage identifiable au premier plan.** Le titre et le
+  sous-titre sont posés par-dessus, et le dégradé qui les protège assombrit le
+  haut de l'image ;
+- **cadrer en paysage et large** : l'image est recadrée au centre pour couvrir
+  toute la largeur de la bannière, et un sujet collé à un bord peut disparaître ;
+- **regarder le résultat dans les deux apparences.** Le dégradé de protection
+  suit le mode sombre ; une photo très claire peut y devenir trop lumineuse, et
+  le texte perdre son contraste.
+
+Le `require` doit rester **littéral**. Un chemin construit à l'exécution n'est
+pas résolu à la compilation : l'image manquerait, sans erreur ni message.
 
 ---
 
@@ -249,7 +291,8 @@ app/                        Écrans (expo-router : le fichier EST la route)
   confidentialite.tsx       Politique de confidentialité
 src/
   components/ui/            AppText, Card, Button, TextField, états…
-  components/               Composants métier (actualité, sondage)
+  components/               Composants métier (bannière, actualité, sondage)
+  components/BarreOnglets   La barre d'onglets, écrite à la main
   config/                   Lecture de l'environnement, client Supabase
   errors/                   Traduction des erreurs en français
   hooks/                    Chargement asynchrone dérivé
