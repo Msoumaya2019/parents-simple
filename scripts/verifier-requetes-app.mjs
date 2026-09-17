@@ -51,7 +51,6 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DOSSIER_SERVICES = 'src/services';
-const COMPARTIMENT = 'documents';
 const DELAI_MS = 20_000;
 
 /** Valeurs de remplacement, par type de colonne. */
@@ -141,11 +140,17 @@ function messageDe(corps) {
  * complète serait plus juste et bien plus fragile ; ce qui compte est qu'une
  * requête ajoutée soit vue.
  */
-function extraireRequetes(source) {
+/** Les constantes chaînes du fichier : `const NOM = 'valeur'`. */
+function constantesDe(source) {
   const constantes = new Map();
   for (const m of source.matchAll(/const\s+(\w+)\s*=\s*'([^']*)'/g)) {
     constantes.set(m[1], m[2]);
   }
+  return constantes;
+}
+
+function extraireRequetes(source) {
+  const constantes = constantesDe(source);
 
   const requetes = [];
   const motif = /\.from\('(\w+)'\)\s*\.select\(\s*(?:'([^']*)'|(\w+))\s*\)/g;
@@ -181,6 +186,30 @@ function extraireRequetes(source) {
   }
 
   return requetes;
+}
+
+/**
+ * Les compartiments de stockage nommés par la couche d'accès aux données.
+ *
+ * Le nom est EXTRAIT du code pour la même raison que les requêtes. Une première
+ * version de ce script portait `COMPARTIMENT = 'documents'` en dur : renommer le
+ * compartiment dans le service aurait laissé le contrôle vert, en train de
+ * sonder un compartiment qui n'existe plus. Le script aurait violé son propre
+ * principe — extraire plutôt que recopier — sur le seul point qu'aucune requête
+ * de table ne couvre.
+ *
+ * Le service écrit `storage.from(COMPARTIMENT)`, nom passé par constante : il
+ * faut donc résoudre la constante, pas seulement lire un littéral.
+ */
+function extraireCompartiments(source) {
+  const constantes = constantesDe(source);
+
+  const noms = new Set();
+  for (const m of source.matchAll(/\.storage\s*\.from\(\s*(?:'([^']+)'|(\w+))\s*\)/g)) {
+    const nom = m[1] ?? constantes.get(m[2]);
+    if (nom !== undefined) noms.add(nom);
+  }
+  return [...noms];
 }
 
 /** Valeur de remplacement, choisie d'après le nom et l'opérateur. */
@@ -221,8 +250,12 @@ async function main() {
 
   const requetes = [];
   const sansRequete = [];
+  const compartiments = new Set();
   for (const fichier of fichiers) {
     const source = readFileSync(join(DOSSIER_SERVICES, fichier), 'utf8');
+    for (const nom of extraireCompartiments(source)) {
+      compartiments.add(nom);
+    }
     const trouvees = extraireRequetes(source);
     for (const requete of trouvees) {
       requetes.push({ ...requete, fichier });
@@ -253,7 +286,17 @@ async function main() {
     process.exit(1);
   }
 
+  // Même panne silencieuse du côté du stockage : un compartiment que le code
+  // nomme mais que l'analyse ne retrouve plus laisserait le contrôle sans rien
+  // à sonder, et vert.
+  if (compartiments.size === 0) {
+    console.error('::error::aucun compartiment de stockage extrait.');
+    console.error("L'analyse de la couche d'accès aux données ne fonctionne plus.");
+    process.exit(1);
+  }
+
   console.log(`Requêtes extraites de ${fichiers.length} fichier(s) : ${requetes.length}`);
+  console.log(`Compartiment(s) de stockage : ${[...compartiments].join(', ')}`);
   console.log('');
 
   for (const requete of requetes) {
@@ -269,38 +312,40 @@ async function main() {
     }
   }
 
-  // --- 2. Le compartiment de stockage ------------------------------------
+  // --- 2. Les compartiments de stockage ----------------------------------
   // Un compartiment absent rend tous les liens de documents morts, et aucune
   // table ne le signale : la table `documents` ne contient que des chemins.
-  // On distingue « objet absent » — normal, le fichier sonde n'existe pas — de
-  // « compartiment absent », qui est le défaut cherché.
-  //    Le transport et le corps ne disent pas la même chose, et c'est mesuré :
-  //    les deux réponses arrivent en **HTTP 400**, avec un corps qui porte
-  //    `statusCode: 404` et un code S3. Seul le corps distingue les deux cas :
   //
-  //      objet absent    → {"code":"NoSuchKey","message":"Object not found"}
-  //      compartiment absent → {"code":"NoSuchBucket","message":"Bucket not found"}
+  // Le transport et le corps ne disent pas la même chose, et c'est mesuré : les
+  // deux réponses arrivent en **HTTP 400**, avec un corps qui porte
+  // `statusCode: 404` et un code S3. Seul le corps distingue les deux cas :
   //
-  //    On exige donc la preuve POSITIVE que le compartiment a répondu au sujet
-  //    de l'objet. Accepter « tout sauf bucket not found » laisserait passer une
-  //    clé refusée, une panne, un 500 — c'est-à-dire exactement les cas où l'on
-  //    veut être réveillé. Une réponse non reconnue échoue en montrant son corps.
-  try {
-    const { statut, corps } = await appeler(
-      `/storage/v1/object/public/${COMPARTIMENT}/sonde-inexistante.pdf`,
-    );
-    const brut = typeof corps === 'string' ? corps : JSON.stringify(corps);
-    const objetAbsent = /NoSuchKey|Object not found/i.test(brut);
-    const compartimentAbsent = /NoSuchBucket|Bucket not found/i.test(brut);
-    journaliser(
-      `compartiment « ${COMPARTIMENT} » : existe et public`,
-      objetAbsent && !compartimentAbsent,
-      objetAbsent
-        ? `HTTP ${statut} — objet absent, attendu (le compartiment, lui, répond)`
-        : `HTTP ${statut} — réponse non reconnue : ${brut.slice(0, 200)}`,
-    );
-  } catch (cause) {
-    journaliser(`compartiment « ${COMPARTIMENT} » : existe et public`, false, cause.message);
+  //   objet absent        → {"code":"NoSuchKey","message":"Object not found"}
+  //   compartiment absent → {"code":"NoSuchBucket","message":"Bucket not found"}
+  //
+  // On exige donc la preuve POSITIVE que le compartiment a répondu au sujet de
+  // l'objet. Accepter « tout sauf bucket not found » laisserait passer une clé
+  // refusée, une panne, un 500 — c'est-à-dire exactement les cas où l'on veut
+  // être réveillé. Une réponse non reconnue échoue en montrant son corps.
+  for (const compartiment of [...compartiments].sort()) {
+    const nom = `compartiment « ${compartiment} » : existe et public`;
+    try {
+      const { statut, corps } = await appeler(
+        `/storage/v1/object/public/${compartiment}/sonde-inexistante.pdf`,
+      );
+      const brut = typeof corps === 'string' ? corps : JSON.stringify(corps);
+      const objetAbsent = /NoSuchKey|Object not found/i.test(brut);
+      const compartimentAbsent = /NoSuchBucket|Bucket not found/i.test(brut);
+      journaliser(
+        nom,
+        objetAbsent && !compartimentAbsent,
+        objetAbsent
+          ? `HTTP ${statut} — objet absent, attendu (le compartiment, lui, répond)`
+          : `HTTP ${statut} — réponse non reconnue : ${brut.slice(0, 200)}`,
+      );
+    } catch (cause) {
+      journaliser(nom, false, cause.message);
+    }
   }
 
   // --- Verdict -----------------------------------------------------------

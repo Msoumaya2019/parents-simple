@@ -191,8 +191,11 @@ Les requêtes sont **extraites** de `src/services/*.ts` plutôt que recopiées :
 un service ajouté demain entre dans l'analyse sans qu'on ait à y penser. Un
 garde-fou vérifie que l'analyse ne perd pas silencieusement un fichier.
 
-Il vérifie aussi le compartiment de stockage `documents` : son absence rendrait
-tous les liens de documents morts, et aucune table ne le signalerait.
+Il vérifie aussi le compartiment de stockage : son absence rendrait tous les
+liens de documents morts, et aucune table ne le signalerait. Le **nom** du
+compartiment est lui aussi extrait du code, pas recopié — renommer le
+compartiment dans le service fait donc échouer le contrôle, au lieu de le
+laisser vert en train de sonder un compartiment disparu.
 
 > **Ce qui reste non vérifié.** Les chemins de **succès** de `voter` et
 > `envoyer_message` ne sont éprouvés nulle part : `securite:api` ne teste que
