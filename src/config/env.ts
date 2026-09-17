@@ -96,9 +96,17 @@ export function construire(): AppConfig {
     return Object.freeze({
       appEnv,
       supabase: null,
+      // Le message ne dit plus « elle commence par eyJ ». Supabase déprécie les
+      // clés JWT pour la fin de 2026 et met en avant `sb_publishable_…`, qui
+      // n'en est pas un : la documentation officielle avertit elle-même que
+      // « si un outil, un tutoriel ou un assistant vous dit de copier une
+      // longue clé commençant par eyJ, c'est qu'il a été écrit pour les clés
+      // historiques ». Décrire une forme qui n'est plus celle du tableau de
+      // bord enverrait chercher une clé qui ne s'y trouve plus.
       configError:
         'La clé publique de la base de données est absente. Renseignez ' +
-        'EXPO_PUBLIC_SUPABASE_ANON_KEY (elle commence par « eyJ »).',
+        'EXPO_PUBLIC_SUPABASE_ANON_KEY — la clé « publishable » (anciennement ' +
+        '« anon ») du tableau de bord. Voir la section « Configuration » du README.',
     });
   }
 

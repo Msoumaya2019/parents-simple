@@ -66,16 +66,23 @@ secret**, deux fois :
 | Nom du secret       | Valeur                                                 |
 | ------------------- | ------------------------------------------------------ |
 | `SUPABASE_URL`      | Project URL, par exemple `https://abcdefg.supabase.co` |
-| `SUPABASE_ANON_KEY` | La clé `anon` `public`                                 |
+| `SUPABASE_ANON_KEY` | La clé _publishable_ (ou `anon` dans l'ancienne forme) |
 
-Ces valeurs se trouvent dans le tableau de bord Supabase, section **Project
-Settings** → **API**.
+Ces valeurs se trouvent dans le tableau de bord Supabase, section **Settings**
+→ **API Keys**.
 
-> La clé `anon` n'est pas un secret au sens strict : elle finit en clair dans
+> **La clé _publishable_ est une chaîne courte** (`sb_publishable_…`) : ce n'est
+> pas un JWT. C'est la forme que le tableau de bord met aujourd'hui en avant.
+> L'ancienne clé `anon` — une longue chaîne commençant par `eyJ` — fonctionne
+> encore, mais Supabase la déprécie pour la fin de 2026. Les deux portent le
+> même rôle, `anon`.
+>
+> La clé publique n'est pas un secret au sens strict : elle finit en clair dans
 > l'application compilée, et c'est normal. Elle est tout de même placée ici pour
-> que le dépôt reste vierge de toute valeur. **Ne jamais placer la clé
-> `service_role`** : elle contourne les politiques de sécurité et donnerait à
-> quiconque l'extrait le droit de lire les messages adressés au bureau.
+> que le dépôt reste vierge de toute valeur. **Ne jamais placer la clé secrète**
+> — `service_role`, ou _secret key_ (`sb_secret_…`) dans la forme actuelle : elle
+> contourne les politiques de sécurité et donnerait à quiconque l'extrait le
+> droit de lire les messages adressés au bureau.
 
 ## 2. Télécharger l'IPA
 

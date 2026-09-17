@@ -78,17 +78,32 @@ continue de vérifier le code sans aucun secret.
 ### Où trouver les valeurs
 
 Le tableau de bord : <https://supabase.com/dashboard/project/toksjxrrgvgovbolcjvr>
-(projet `parents-simple-cli`). Puis **Project Settings** → **API** :
+(projet `parents-simple-cli`). Puis **Settings** → **API Keys** :
 
 | Valeur du tableau de bord | Variable                        |
 | ------------------------- | ------------------------------- |
 | Project URL               | `EXPO_PUBLIC_SUPABASE_URL`      |
-| `anon` `public`           | `EXPO_PUBLIC_SUPABASE_ANON_KEY` |
+| publishable key           | `EXPO_PUBLIC_SUPABASE_ANON_KEY` |
 
-> La clé `anon` est **publique** : elle finit en clair dans l'application
-> compilée, et c'est normal. Sa portée est entièrement définie par les
-> politiques RLS du schéma. La clé `service_role` ne doit **jamais** être
-> placée ici — `src/config/env.ts` refuse de démarrer si on la lui fournit.
+> **Deux formes de clé publique coexistent, et elles ne se ressemblent pas.**
+> La clé _publishable_ (`sb_publishable_…`) est une **chaîne courte** : ce n'est
+> pas un JWT. C'est la forme que le tableau de bord met aujourd'hui en avant.
+> L'ancienne clé `anon` — un JWT, donc une longue chaîne commençant par `eyJ` —
+> fonctionne encore, et créer les nouvelles clés ne révoque pas les anciennes.
+> Mais Supabase déprécie `anon` et `service_role` pour la fin de 2026.
+>
+> La documentation officielle le dit sans détour : _« si un outil, un tutoriel
+> ou un assistant vous dit de copier une longue clé commençant par `eyJ`, c'est
+> qu'il a été écrit pour les clés historiques »_. Les deux formes portent le
+> même rôle, `anon`, tant qu'aucun utilisateur n'est connecté — et cette
+> application n'en connecte aucun.
+
+> La clé publique est **faite pour être exposée** : elle finit en clair dans
+> l'application compilée, et c'est normal. Sa portée est entièrement définie par
+> les politiques RLS du schéma. La clé secrète — _secret key_ (`sb_secret_…`)
+> ou, dans l'ancienne forme, `service_role` — ne doit **jamais** être placée ici.
+> Elle contourne la RLS : `src/config/env.ts` refuse de démarrer si on la lui
+> fournit, sous ses deux formes.
 
 ### Créer la base
 

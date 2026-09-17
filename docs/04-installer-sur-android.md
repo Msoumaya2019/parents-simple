@@ -51,7 +51,13 @@ repository secret** :
 | Nom du secret       | Valeur                                                 |
 | ------------------- | ------------------------------------------------------ |
 | `SUPABASE_URL`      | Project URL, par exemple `https://abcdefg.supabase.co` |
-| `SUPABASE_ANON_KEY` | La clé `anon` `public`                                 |
+| `SUPABASE_ANON_KEY` | La clé _publishable_ (ou `anon` dans l'ancienne forme) |
+
+Ces valeurs se trouvent dans le tableau de bord Supabase, section **Settings**
+→ **API Keys**. La clé _publishable_ est une **chaîne courte**
+(`sb_publishable_…`), pas un JWT ; l'ancienne clé `anon` commence par `eyJ` et
+reste valable jusqu'à sa désactivation. Le détail est dans
+[`docs/01-installer-sur-iphone.md`](01-installer-sur-iphone.md), section 1.
 
 ## 2. Télécharger et installer
 

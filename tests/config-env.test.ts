@@ -171,6 +171,29 @@ describe('refus des clés à privilèges', () => {
 });
 
 describe('clés acceptées', () => {
+  it('accepte la clé publique au format actuel, `sb_publishable_…`', () => {
+    // Le miroir des tests de refus, et le plus important des tests
+    // d'acceptation : `sb_publishable_…` et `sb_secret_…` partagent le préfixe
+    // `sb_`. Un « refusons tout ce qui commence par sb_ » — la simplification
+    // qu'on écrirait sans réfléchir — passerait tous les tests de refus et
+    // rendrait l'application inutilisable, avec pour seul symptôme une erreur
+    // de configuration à l'ouverture.
+    //
+    // La clé publishable est bien celle qu'il faut ici : elle porte le rôle
+    // `anon` tant qu'aucun utilisateur n'est connecté, et cette application
+    // n'en connecte aucun.
+    const cle = 'sb_publishable_AbCdEf0123456789';
+
+    surEnvironnement(
+      { EXPO_PUBLIC_SUPABASE_URL: ADRESSE, EXPO_PUBLIC_SUPABASE_ANON_KEY: cle },
+      () => {
+        const configuration = construire();
+        assert.equal(configuration.configError, null);
+        assert.equal(configuration.supabase?.anonKey, cle);
+      },
+    );
+  });
+
   it('accepte un JWT dont le rôle est `anon`', () => {
     const cle = jetonAnon();
 
