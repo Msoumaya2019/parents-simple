@@ -41,6 +41,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# supabase : état local de la ligne de commande (liaison au projet, cache)
+supabase/.temp/
+
 # generated native folders
 /ios
 /android
