@@ -206,8 +206,13 @@ laisser vert en train de sonder un compartiment disparu.
 > `envoyer_message` ne sont éprouvés nulle part : `securite:api` ne teste que
 > leurs refus. Les éprouver demande un sondage ouvert et un message réellement
 > déposé, donc des écritures. Tant que ce complément n'existe pas, un `voter`
-> cassé ne se manifesterait qu'au moment du premier sondage. À écrire avant de
-> s'appuyer sur les sondages.
+> cassé ne serait découvert qu'au premier sondage — mais il le serait **avec un
+> message**, pas en silence : `SondageCard` attrape l'erreur et l'affiche sous la
+> question, et l'écran Contact fait de même. Le risque est d'apprendre le défaut
+> tard, pas qu'il passe inaperçu.
+>
+> `supabase/exemple-contenu.sql` crée justement un sondage ouvert, pour que ce
+> chemin puisse être éprouvé à la main en attendant.
 
 Les deux contrôles exigent une configuration et ne font donc pas partie de
 `npm run verify`, qui doit tourner sans aucun secret. **Les deux flux de travail

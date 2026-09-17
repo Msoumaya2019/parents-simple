@@ -197,7 +197,11 @@ on conflict do nothing;
 --  ---------------------------------------------------------------------------
 --  C'est ce sondage qui permet d'éprouver le seul chemin non couvert par les
 --  contrôles automatiques : voter. Ouvrez l'onglet Plus, répondez, et vérifiez
---  que le décompte bouge. Un `voter` cassé ne se manifesterait qu'ici.
+--  que le décompte bouge.
+--
+--  Si le vote échoue, l'écran l'affiche en rouge sous la question — il ne reste
+--  pas muet. C'est ce qui rend cette vérification manuelle acceptable en
+--  attendant : le défaut serait appris tard, pas caché.
 --
 --  `cloture_le` est dans le futur, et `ouvert` vaut true : sans ces deux
 --  conditions, la fonction refuserait le vote avec « Ce sondage est fermé ».

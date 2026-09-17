@@ -38,8 +38,14 @@
  * sondage inexistant, envoyer un sujet vide. Or ce sont les chemins de succès
  * que les parents empruntent. Les éprouver demande un sondage ouvert et un
  * message réellement déposé, donc des écritures : c'est un complément à écrire,
- * pas un oubli à couvrir d'un vert. Tant qu'il n'existe pas, un `voter` cassé
- * ne se manifesterait qu'auprès des parents, au moment du premier sondage.
+ * pas un oubli à couvrir d'un vert.
+ *
+ * Tant qu'il n'existe pas, un `voter` cassé ne serait découvert qu'au premier
+ * sondage — mais il le serait **avec un message**, pas en silence : `SondageCard`
+ * attrape l'erreur et l'affiche sous la question, et l'écran Contact fait de même.
+ * Le risque est donc d'apprendre le défaut tard, pas qu'il passe inaperçu.
+ * C'est une différence de nature, et elle vaut la peine d'être dite : elle
+ * change ce qu'on redoute, pas seulement ce qu'on ignore.
  *
  * Usage :
  *   npm run verifier:requetes
