@@ -22,6 +22,15 @@
  * chaque politique vise-t-elle une table réelle, les tables sensibles sont-elles
  * bien fermées. C'est le niveau où se trouvent les fautes coûteuses.
  *
+ * IL CONFRONTE AUSSI LE SCHÉMA À L'ÉCRAN QUI LE SAISIT
+ * ----------------------------------------------------
+ * Les bornes de longueur sont écrites deux fois — dans la migration, qui les
+ * applique, et dans l'écran de contact, qui empêche de les atteindre. Rien ne
+ * les relie, et une divergence ne se voit qu'à l'usage : le parent saisit, la
+ * base refuse, et il lit « Réessayez dans un instant » pour une limite qu'il ne
+ * peut pas franchir. C'est le seul endroit du script qui lit un fichier de
+ * `app/`, et il le fait parce que la vérité y est écrite à la main.
+ *
  * Usage : `npm run sql:check`
  */
 
@@ -266,6 +275,83 @@ verifier(
   normalise.includes('insert into storage.buckets'),
   'Le compartiment de stockage des documents est déclaré par une migration.',
 );
+
+// ---------------------------------------------------------------------------
+//  8. Les bornes de saisie ne dépassent pas ce que la base accepte
+// ---------------------------------------------------------------------------
+//  Les mêmes limites sont écrites deux fois : dans la migration, qui les
+//  applique, et dans l'écran de contact, qui empêche de les atteindre. Rien ne
+//  les relie. Une divergence ne se voit nulle part : l'écran laisse saisir, la
+//  base refuse, et le parent lit « Réessayez dans un instant » pour une limite
+//  qu'il ne peut pas franchir — un message faux, qui l'envoie chercher une
+//  cause inexistante.
+//
+//  La règle n'est pas l'égalité, mais la NON-PERMISSIVITÉ : l'écran a le droit
+//  d'être plus strict que la base — il exige dix caractères là où la base en
+//  accepte un — jamais plus large.
+//
+//  On ancre la lecture sur le NOM DE LA CONTRAINTE et non sur celui de la
+//  colonne : `corps` existe dans `annonces` (8000) et dans `messages` (4000).
+//  Chercher la colonne ferait comparer l'écran à la mauvaise table, et le
+//  contrôle tomberait sur du code juste.
+const ECRAN_CONTACT = path.join(RACINE, 'app', '(tabs)', 'contact.tsx');
+
+/** Borne haute d'une contrainte `check`, lue dans la migration. */
+function borneDe(nomContrainte) {
+  const position = normalise.indexOf(nomContrainte);
+  if (position === -1) {
+    return null;
+  }
+  const trouve = normalise.slice(position, position + 200).match(/between (\d+) and (\d+)/);
+  return trouve === null ? null : Number(trouve[2]);
+}
+
+/** Valeur d'une constante `const NOM = 123;`, lue dans l'écran. */
+function constanteNumerique(source, nom) {
+  const trouve = source.match(new RegExp(`const ${nom} = (\\d+);`));
+  return trouve === null ? null : Number(trouve[1]);
+}
+
+if (fs.existsSync(ECRAN_CONTACT)) {
+  const ecran = fs.readFileSync(ECRAN_CONTACT, 'utf8');
+
+  for (const { contrainte, constante } of [
+    { contrainte: 'messages_sujet_valide', constante: 'LONGUEUR_SUJET' },
+    { contrainte: 'messages_corps_valide', constante: 'LONGUEUR_MESSAGE' },
+  ]) {
+    const coteBase = borneDe(contrainte);
+    const coteEcran = constanteNumerique(ecran, constante);
+
+    // Sans ces deux contrôles, un motif qui ne correspond plus rendrait le
+    // contrôle d'accord vert en ne comparant rien.
+    verifier(coteBase !== null, `La contrainte « ${contrainte} » est lisible dans la migration.`);
+    verifier(
+      coteEcran !== null,
+      `La constante « ${constante} » est lisible dans l'écran de contact.`,
+    );
+    verifier(
+      coteBase !== null && coteEcran !== null && coteEcran <= coteBase,
+      `« ${constante} » (${coteEcran ?? '?'}) ne dépasse pas la borne de « ${contrainte} » (${coteBase ?? '?'}).`,
+    );
+  }
+
+  // `reponse_a` n'a pas de borne basse : sa contrainte s'écrit
+  // `is null or char_length(reponse_a) <= 254`, sans `btrim` ni `between`.
+  const adresseBase = normalise.match(/char_length\(reponse_a\) <= (\d+)/);
+  const adresseEcran = constanteNumerique(ecran, 'LONGUEUR_ADRESSE');
+
+  verifier(adresseBase !== null, 'La contrainte de longueur de « reponse_a » est lisible.');
+  verifier(
+    adresseEcran !== null,
+    "La constante « LONGUEUR_ADRESSE » est lisible dans l'écran de contact.",
+  );
+  verifier(
+    adresseBase !== null && adresseEcran !== null && adresseEcran <= Number(adresseBase[1]),
+    `« LONGUEUR_ADRESSE » (${adresseEcran ?? '?'}) ne dépasse pas la borne de « reponse_a » (${adresseBase?.[1] ?? '?'}).`,
+  );
+} else {
+  signaler('erreur', `L'écran de contact est introuvable : ${ECRAN_CONTACT}`);
+}
 
 // ---------------------------------------------------------------------------
 //  Rapport
