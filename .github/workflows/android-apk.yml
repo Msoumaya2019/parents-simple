@@ -151,19 +151,27 @@ jobs:
 
           echo "Configuration présente."
 
-      - name: Éprouver la sécurité de la base
+      - name: Éprouver la base avant de compiler
         # `sql:check` lit la migration et vérifie qu'elle *dit* les bonnes
-        # choses. Ce contrôle-ci interroge la base réelle avec la même clé
-        # publique que celle embarquée dans l'application, et vérifie ce qu'un
-        # inconnu peut réellement en faire.
+        # choses. Ces contrôles-ci interrogent la base réelle avec la même clé
+        # publique que celle embarquée dans l'application :
+        #
+        #   `securite:api`      — ce qu'un inconnu peut réellement en faire ;
+        #   `verifier:requetes` — ce que l'application en fait, et qui doit
+        #                         répondre.
         #
         # La distinction compte : une politique ajoutée à la main depuis le
         # tableau de bord n'apparaît dans aucun fichier, et une migration jamais
-        # appliquée décrit une base qui n'existe pas.
+        # appliquée décrit une base qui n'existe pas. Symétriquement, une
+        # colonne renommée dans le schéma ne se voit que dans le second contrôle
+        # et ne se manifesterait sinon qu'après installation, par un onglet vide.
         #
-        # Placé ici parce que les secrets sont disponibles, et avant la
-        # compilation : on ne produit pas un APK pour une base ouverte.
-        run: npm run securite:api
+        # Placés ici parce que les secrets sont disponibles, et avant la
+        # compilation : on ne produit pas un APK pour une base ouverte, ni pour
+        # une base qu'il ne sait pas interroger.
+        run: |
+          npm run securite:api
+          npm run verifier:requetes
 
       - name: Vérifier le code avant de compiler
         # Un binaire qui compile n'est pas un binaire juste. Ces contrôles

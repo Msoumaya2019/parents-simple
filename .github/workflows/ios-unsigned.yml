@@ -163,11 +163,34 @@ jobs:
 
           echo "Configuration présente."
 
+      - name: Éprouver la base avant de compiler
+        # `sql:check` lit la migration et vérifie qu'elle *dit* les bonnes
+        # choses. Ces deux contrôles-ci interrogent la base RÉELLE, avec la même
+        # clé publique que celle embarquée dans l'application :
+        #
+        #   `securite:api`      — ce qu'un inconnu ne peut PAS faire ;
+        #   `verifier:requetes` — ce que l'application FAIT, et qui doit
+        #                         répondre.
+        #
+        # Les deux moitiés comptent autant l'une que l'autre. Une table ouverte
+        # se voit dans la première ; une colonne renommée dans le schéma ne se
+        # voit que dans la seconde, et se manifesterait sinon par un onglet vide
+        # sur le téléphone d'un parent, après installation — c'est-à-dire au
+        # pire endroit pour l'apprendre.
+        #
+        # Placés ici parce que les secrets sont disponibles, et AVANT la
+        # compilation : on ne produit pas une application pour une base qu'elle
+        # ne sait pas interroger.
+        run: |
+          npm run securite:api
+          npm run verifier:requetes
+
       - name: Vérifier le code avant de compiler
         # Un binaire qui compile n'est pas un binaire juste. Ces contrôles
         # prennent deux minutes là où le build en prend quinze, et ils attrapent
         # ce que la compilation laisse passer — notamment une table sans RLS.
         run: |
+          npm run workflows:check
           npm run lint
           npm run typecheck
           npm test
