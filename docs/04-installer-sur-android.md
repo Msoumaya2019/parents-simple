@@ -20,7 +20,15 @@ C'est de cette règle que découle tout le reste de ce document.
 
 ---
 
-## 1. Faire construire l'APK
+## 1. Obtenir l'APK
+
+### Si une compilation a déjà eu lieu
+
+Le fichier est à la racine du projet, sous le nom `freres-lumieres-parents.apk` —
+environ 96 Mo. Dans ce cas, **passer directement à l'étape 2** : relancer une
+compilation produirait un fichier identique, au prix d'une vingtaine de minutes.
+
+### Sinon, la faire construire par GitHub
 
 Sur GitHub, dans le dépôt :
 

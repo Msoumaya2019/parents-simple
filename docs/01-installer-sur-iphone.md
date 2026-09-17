@@ -33,7 +33,16 @@ profil, aucun mot de passe n'y est stocké.
 
 ---
 
-## 1. Faire construire l'IPA
+## 1. Obtenir l'IPA
+
+### Si une compilation a déjà eu lieu
+
+Le fichier est à la racine du projet, sous le nom
+`freres-lumieres-parents-non-signe.ipa` — environ 14 Mo. Dans ce cas, **passer
+directement à l'étape 3** : relancer une compilation produirait un fichier
+identique, au prix d'un quart d'heure.
+
+### Sinon, la faire construire par GitHub
 
 Sur GitHub, dans le dépôt :
 
@@ -78,16 +87,45 @@ le `.ipa` est à l'intérieur.
 
 ### Avec Sideloadly (Windows ou macOS)
 
-1. installer [Sideloadly](https://sideloadly.io/) ;
-2. brancher l'iPhone en USB, et **faire confiance à cet ordinateur** sur le
-   téléphone ;
-3. glisser le `.ipa` dans Sideloadly ;
-4. saisir son identifiant Apple dans le champ _Apple ID_. Un mot de passe
-   d'application est préférable à un mot de passe principal ;
-5. **Start**.
+**Deux préparatifs avant la première tentative.** Les sauter produit des messages
+d'erreur qui ne disent pas ce qui manque.
+
+**Sous Windows** — Sideloadly a besoin des pilotes « Apple Mobile Device », que
+la version du Microsoft Store **ne fournit pas** :
+
+1. désinstaller iTunes s'il vient du Microsoft Store ;
+2. installer la version du site d'Apple —
+   [Windows 64 bits](https://www.apple.com/itunes/download/win64) — puis
+   redémarrer ;
+3. brancher l'iPhone, l'ouvrir une fois dans iTunes, et accepter **Faire
+   confiance** sur le téléphone.
+
+**Sur l'iPhone** — depuis iOS 16, Apple exige le **mode développeur** pour
+installer une application hors App Store, et celle-ci demande iOS 16.4 :
+
+4. **Réglages** → **Confidentialité et sécurité** → descendre jusqu'à **Mode
+   développeur** → l'activer, puis redémarrer le téléphone.
+
+Puis :
+
+5. installer [Sideloadly](https://sideloadly.io/) ;
+6. glisser le `.ipa` dans Sideloadly ;
+7. saisir son identifiant Apple dans le champ _Apple ID_ — **le mot de passe
+   normal, pas un mot de passe d'application** : un mot de passe d'application
+   ne fonctionne qu'avec un compte développeur payant, et sera refusé ici. Si la
+   double authentification est active, Apple envoie un code à six chiffres sur
+   vos autres appareils : le saisir dans Sideloadly ;
+8. **Start**.
 
 Sideloadly signe l'application avec votre identifiant, l'installe, et affiche
 la date d'expiration.
+
+> Pour éviter de resigner à la main chaque semaine, cocher l'option de
+> **rafraîchissement automatique** au moment de l'installation. Le démon de
+> Sideloadly s'en charge ensuite dès qu'il détecte le téléphone — en USB, ou en
+> Wi-Fi si le téléphone est appairé à l'ordinateur. Le rafraîchissement en
+> Wi-Fi se règle dans iTunes : _Appareil connecté_ → _Résumé_ → _Synchroniser
+> avec cet iPhone en Wi-Fi_.
 
 ### Avec AltStore (macOS ou Windows)
 
@@ -124,11 +162,16 @@ d'Expo pourrait ne plus prendre en charge un module natif utilisé ici.
 
 ## En cas de problème
 
-| Symptôme                                                  | Cause probable                                                                                                                                                                                                                                                                                                                                 |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Unable to install » dans Sideloadly                     | Un profil de développeur existe déjà pour cette application, avec un autre identifiant Apple. Le supprimer dans Réglages → VPN et gestion de l'appareil.                                                                                                                                                                                       |
-| L'application s'ouvre puis affiche un écran d'explication | Les secrets `SUPABASE_URL` ou `SUPABASE_ANON_KEY` étaient absents au moment de la compilation. Le workflow le signale pourtant avant de compiler.                                                                                                                                                                                              |
-| L'application cesse de fonctionner après une semaine      | Comportement normal d'un compte Apple gratuit. Re-signer avec Sideloadly, sans réinstaller.                                                                                                                                                                                                                                                    |
-| Le workflow échoue à `xcodebuild`                         | Vérifier que `runs-on` vaut `macos-26`. Expo SDK 57 tire `expo-modules-jsi`, qui déclare `swift-tools-version: 6.2` dans son `apple/Package.swift` : cette version de Swift n'arrive qu'avec Xcode 26. `macos-15` — Xcode 16.4, Swift 6.1 — échoue à la résolution des dépendances. Le workflow vérifie la chaîne d'outils et le dit lui-même. |
-| Tous les onglets sont vides                               | La base ne contient encore aucun contenu. Les écrans affichent alors un message explicite (« Aucune actualité pour le moment »), et non une erreur. Voir [`02-publier-du-contenu.md`](02-publier-du-contenu.md).                                                                                                                               |
-| L'écran Confidentialité est vide                          | Les variables d'environnement n'ont pas été prises en compte. Voir la table ci-dessus.                                                                                                                                                                                                                                                         |
+| Symptôme                                                         | Cause probable                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| « Unable to install » dans Sideloadly                            | Un profil de développeur existe déjà pour cette application, avec un autre identifiant Apple. Le supprimer dans Réglages → VPN et gestion de l'appareil.                                                                                                                                                                                       |
+| Sideloadly ne détecte pas l'iPhone (`No devices detected`)       | iTunes vient du Microsoft Store, qui n'installe pas les pilotes Apple Mobile Device. Désinstaller cette version, installer celle du [site d'Apple](https://www.apple.com/itunes/download/win64), redémarrer, puis accepter **Faire confiance** sur le téléphone. Un autre câble ou un autre port USB règle parfois la chose.                   |
+| L'installation échoue, ou l'application s'installe sans s'ouvrir | Le **mode développeur** n'est pas activé sur l'iPhone : Réglages → Confidentialité et sécurité → Mode développeur. Obligatoire depuis iOS 16, et cette application demande iOS 16.4.                                                                                                                                                           |
+| Sideloadly refuse le mot de passe d'application                  | Attendu avec un compte Apple gratuit : les mots de passe d'application ne fonctionnent qu'avec un compte développeur payant. Utiliser le mot de passe principal de l'identifiant Apple, puis saisir le code à six chiffres de la double authentification.                                                                                      |
+| `Your maximum App ID limit has been reached`                     | Un compte Apple gratuit ne peut créer que 10 identifiants d'application par tranche de 7 jours. Attendre, ou utiliser un autre identifiant Apple.                                                                                                                                                                                              |
+| L'installation réussit mais aucune icône n'apparaît              | Redémarrer le téléphone.                                                                                                                                                                                                                                                                                                                       |
+| L'application s'ouvre puis affiche un écran d'explication        | Les secrets `SUPABASE_URL` ou `SUPABASE_ANON_KEY` étaient absents au moment de la compilation. Le workflow le signale pourtant avant de compiler.                                                                                                                                                                                              |
+| L'application cesse de fonctionner après une semaine             | Comportement normal d'un compte Apple gratuit. Re-signer avec Sideloadly, sans réinstaller.                                                                                                                                                                                                                                                    |
+| Le workflow échoue à `xcodebuild`                                | Vérifier que `runs-on` vaut `macos-26`. Expo SDK 57 tire `expo-modules-jsi`, qui déclare `swift-tools-version: 6.2` dans son `apple/Package.swift` : cette version de Swift n'arrive qu'avec Xcode 26. `macos-15` — Xcode 16.4, Swift 6.1 — échoue à la résolution des dépendances. Le workflow vérifie la chaîne d'outils et le dit lui-même. |
+| Tous les onglets sont vides                                      | La base ne contient encore aucun contenu. Les écrans affichent alors un message explicite (« Aucune actualité pour le moment »), et non une erreur. Voir [`02-publier-du-contenu.md`](02-publier-du-contenu.md).                                                                                                                               |
+| L'écran Confidentialité est vide                                 | Les variables d'environnement n'ont pas été prises en compte. Voir la table ci-dessus.                                                                                                                                                                                                                                                         |
