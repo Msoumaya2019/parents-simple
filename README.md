@@ -152,6 +152,26 @@ Trois d'entre eux méritent une explication, car ils ne sont pas ordinaires :
 - **`export:android`** est le seul contrôle qui fait passer le paquet par Metro.
   Un module natif mal déclaré échoue ici et nulle part ailleurs.
 
+### Éprouver la sécurité sur la base réelle
+
+```bash
+npm run securite:api
+```
+
+`sql:check` lit la migration et vérifie qu'elle **dit** les bonnes choses. Ce
+contrôle-ci interroge la base **réelle**, avec la même clé publique que celle
+embarquée dans l'application, et vérifie ce qu'un inconnu peut réellement en
+faire. La distinction compte : une politique ajoutée à la main depuis le tableau
+de bord n'apparaît dans aucun fichier, et une migration jamais appliquée décrit
+une base qui n'existe pas.
+
+21 vérifications, dont **aucune ne modifie la base** — les appels aux fonctions
+sont choisis pour échouer avant toute insertion.
+
+Il exige une configuration et ne fait donc pas partie de `npm run verify`, qui
+doit tourner sans aucun secret. Le flux Android l'exécute avant de compiler : on
+ne produit pas un APK pour une base ouverte.
+
 ---
 
 ## Structure

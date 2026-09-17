@@ -151,6 +151,20 @@ jobs:
 
           echo "Configuration présente."
 
+      - name: Éprouver la sécurité de la base
+        # `sql:check` lit la migration et vérifie qu'elle *dit* les bonnes
+        # choses. Ce contrôle-ci interroge la base réelle avec la même clé
+        # publique que celle embarquée dans l'application, et vérifie ce qu'un
+        # inconnu peut réellement en faire.
+        #
+        # La distinction compte : une politique ajoutée à la main depuis le
+        # tableau de bord n'apparaît dans aucun fichier, et une migration jamais
+        # appliquée décrit une base qui n'existe pas.
+        #
+        # Placé ici parce que les secrets sont disponibles, et avant la
+        # compilation : on ne produit pas un APK pour une base ouverte.
+        run: npm run securite:api
+
       - name: Vérifier le code avant de compiler
         # Un binaire qui compile n'est pas un binaire juste. Ces contrôles
         # prennent deux minutes là où la compilation en prend vingt.

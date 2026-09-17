@@ -120,7 +120,11 @@ non `messages`.
 
 ---
 
-## Ce que le contrôle automatique vérifie
+## Ce que les contrôles automatiques vérifient
+
+Deux contrôles, à deux niveaux. Aucun ne remplace l'autre.
+
+### 1. La migration, relue — `npm run sql:check`
 
 `npm run sql:check` lit les migrations et refuse la poussée si :
 
@@ -139,6 +143,47 @@ invisible jusqu'à ce que quelqu'un l'exploite.
 Le contrôle a été éprouvé : retirer une ligne `enable row level security`, ou
 accorder par mégarde un `grant select` sur `messages`, le fait échouer avec le
 message correspondant.
+
+### 2. La base, interrogée — `npm run securite:api`
+
+Un fichier de migration peut décrire une base qui n'existe pas : il suffit qu'il
+n'ait jamais été appliqué. Et une politique ajoutée à la main depuis le tableau
+de bord n'apparaît dans aucun fichier. Le premier contrôle ne peut donc rien
+dire de l'état réel.
+
+`npm run securite:api` interroge la base **avec la même clé publique que celle
+embarquée dans l'application**, et vérifie ce qu'un inconnu qui l'extrait d'un
+APK peut réellement faire :
+
+| Vérification                               | Attendu                        |
+| ------------------------------------------ | ------------------------------ |
+| Les six tables de contenu                  | lisibles (HTTP 200)            |
+| `messages`, `sondage_votes`                | **refusées** (HTTP 401 ou 403) |
+| Insertion, modification, suppression       | refusées partout               |
+| `sondage_resultats`                        | répond                         |
+| `voter` avec un sondage inexistant         | refuse                         |
+| `envoyer_message` avec un sujet vide       | refuse, sans rien insérer      |
+| `set_updated_at`, `verifier_vote_coherent` | non exposées                   |
+| La clé utilisée                            | porte le rôle `anon`           |
+
+Deux points de conception :
+
+- **Une table fermée doit répondre « interdit », pas « liste vide ».** Un 200
+  avec `[]` signifierait que le privilège de lecture a été accordé et que seule
+  l'absence de politique retient les lignes — un ajout de politique accidentel
+  ouvrirait alors la table. Le contrôle exige donc un 401 ou un 403.
+- **Aucune requête ne modifie la base.** Les appels aux fonctions sont choisis
+  pour échouer avant toute insertion : un sondage inexistant pour `voter`, un
+  sujet vide pour `envoyer_message`. Le contrôle ne dépose jamais un message
+  d'essai dans la boîte du bureau.
+
+Le contrôle a lui aussi été éprouvé, contre un serveur simulant PostgREST : base
+correcte → vert ; `messages` lisible, écritures autorisées, fonction exposée
+manquante, sujet vide accepté, clé `service_role` fournie → échec dans les cinq
+cas, avec le message attendu.
+
+Le flux Android l'exécute avant de compiler : on ne produit pas un APK pour une
+base ouverte.
 
 ---
 
