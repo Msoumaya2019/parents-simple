@@ -61,6 +61,31 @@ Store, et cela ne peut pas se faire à distance sans une action de l'utilisateur
 > parfaitement et n'afficherait aucune donnée — un défaut qui ne se voit qu'après
 > installation.
 
+### Pourquoi l'APK pèse près de 100 Mo
+
+Il embarque **quatre architectures** de processeur, avec 22 bibliothèques
+natives chacune :
+
+| Architecture  | Poids | Utilité réelle                  |
+| ------------- | ----- | ------------------------------- |
+| `arm64-v8a`   | 20 Mo | tous les téléphones depuis 2017 |
+| `armeabi-v7a` | 14 Mo | téléphones anciens (32 bits)    |
+| `x86`         | 21 Mo | émulateurs uniquement           |
+| `x86_64`      | 20 Mo | émulateurs uniquement           |
+
+Soit environ 74 Mo de code natif pour 3 Mo de code applicatif. Les deux
+architectures `x86` ne servent qu'aux émulateurs : elles n'ont rien à faire dans
+un APK distribué.
+
+**C'est volontaire pour l'instant.** Cet APK sert à valider l'application : il
+s'installe sur n'importe quel téléphone _et_ sur n'importe quel émulateur, ce qui
+évite de se demander quelle version télécharger. Le réduire est une optimisation
+de **distribution**, à faire au moment où l'application part vers les familles —
+en ne gardant que `arm64-v8a` et `armeabi-v7a`, l'APK tomberait autour de 25 Mo.
+Cela se règle par `ndk { abiFilters }` dans `android/app/build.gradle`, donc par
+un script du même genre que celui de la signature, puisque `android/` est
+régénéré à chaque compilation.
+
 ---
 
 ## 3. La limite de l'APK d'essai
