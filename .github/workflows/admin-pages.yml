@@ -110,10 +110,15 @@ jobs:
         run: npm run admin:page
 
       - name: Préparer la mise à disposition
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
+      # `upload-pages-artifact@v5` et non `@v3`, que le modèle de GitHub emploie
+      # encore : la v3 téléverse par `upload-artifact@v4`, qui vise Node 20, et
+      # l'exécuteur le signale à chaque passage. La v5 est passée à
+      # `upload-artifact@v7`. Mesuré sur une première mise à disposition, puis
+      # après ce changement : l'annotation a disparu.
       - name: Téléverser la page
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: admin/dist
 
