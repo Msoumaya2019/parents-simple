@@ -11,10 +11,19 @@
  *
  * L'ÉVÉNEMENT EN COURS EST MARQUÉ
  * -------------------------------
- * Une réunion de 18 h à 20 h est encore « à venir » pour la base tant que son
- * début n'est pas passé. Sans indication, un parent qui ouvre l'application à
- * 19 h voit une réunion listée comme si elle n'avait pas commencé. Le marquage
- * « En ce moment » lève cette ambiguïté.
+ * Une réunion de 18 h à 20 h n'est pas terminée à 19 h. Le marquage « En ce
+ * moment » le dit, et un événement qui dure toute la journée est marqué de même
+ * — sans quoi une sortie scolaire apparaîtrait atténuée, le jour même, comme si
+ * elle était passée.
+ *
+ * LA SÉPARATION PORTE SUR LE JOUR, PAS SUR L'INSTANT
+ * --------------------------------------------------
+ * Les deux listes se partagent le jour courant : « à venir » commence au premier
+ * instant du jour, « passés » s'arrête juste avant. Comparer à l'instant
+ * courant, comme on le faisait, rangeait dans le passé **tout ce qui avait
+ * commencé** — une sortie scolaire de la journée dès minuit, et la réunion de
+ * 18 h quand le parent ouvre l'application à 19 h. Il les cherchait dans « à
+ * venir » et ne les y trouvait pas.
  */
 
 import { useMemo, useState } from 'react';
@@ -26,7 +35,7 @@ import { useRafraichissement } from '@/hooks/useRafraichissement';
 import { useTheme } from '@/providers/theme-provider';
 import { listerEvenementsPasses, listerProchainsEvenements } from '@/services/agenda';
 import type { EvenementAgenda } from '@/types/models';
-import { dateLongue, estEnCours, estPasse, heure } from '@/utils/date';
+import { dateLongue, debutDuJour, estEnCours, estPasse, heure } from '@/utils/date';
 
 type Vue = 'avenir' | 'passes';
 
@@ -37,10 +46,10 @@ export default function AgendaScreen(): React.JSX.Element {
   const { etat, enCours, recharger } = useAsyncData<readonly EvenementAgenda[]>(
     `agenda-${vue}`,
     () => {
-      const maintenant = new Date().toISOString();
-      return vue === 'avenir'
-        ? listerProchainsEvenements(maintenant)
-        : listerEvenementsPasses(maintenant);
+      // La borne est le PREMIER INSTANT DU JOUR, et non l'instant courant : un
+      // événement commencé n'est pas un événement passé. Voir l'en-tête.
+      const borne = debutDuJour().toISOString();
+      return vue === 'avenir' ? listerProchainsEvenements(borne) : listerEvenementsPasses(borne);
     },
   );
 
@@ -146,8 +155,8 @@ function Segment({
 function EvenementCard({ evenement }: { readonly evenement: EvenementAgenda }): React.JSX.Element {
   const { theme } = useTheme();
 
-  const enCours = estEnCours(evenement.debutLe, evenement.finLe);
-  const termine = estPasse(evenement.debutLe, evenement.finLe);
+  const enCours = estEnCours(evenement.debutLe, evenement.finLe, evenement.journeeEntiere);
+  const termine = estPasse(evenement.debutLe, evenement.finLe, evenement.journeeEntiere);
 
   // L'heure de fin n'est affichée que si elle est connue, et seulement si elle
   // diffère du début : « 18 h – 18 h » n'apporte rien et donne l'impression

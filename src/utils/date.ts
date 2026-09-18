@@ -193,34 +193,78 @@ export function depuis(iso: string, maintenant = new Date()): string {
 }
 
 /**
+ * L'instant à partir duquel un événement est terminé.
+ *
+ * La fin connue quand elle existe. Sinon, pour un événement qui dure toute la
+ * journée, la fin de son jour : « toute la journée » veut dire jusqu'à 23 h 59,
+ * et prendre le début comme repère ferait passer une sortie scolaire pour
+ * terminée dès minuit — donc atténuée, et sans marque, le jour même.
+ *
+ * Sinon le début : on ne sait rien de plus, et un événement sans fin connue qui
+ * a commencé est tenu pour terminé.
+ */
+function referenceDeFin(
+  debutLe: string,
+  finLe: string | null,
+  journeeEntiere: boolean,
+): Date | null {
+  const fin = finLe === null ? null : instant(finLe);
+  if (fin !== null) {
+    return fin;
+  }
+
+  const debut = instant(debutLe);
+  if (debut === null) {
+    return null;
+  }
+  if (!journeeEntiere) {
+    return debut;
+  }
+
+  return new Date(debut.getFullYear(), debut.getMonth(), debut.getDate(), 23, 59, 59, 999);
+}
+
+/**
  * Vrai si l'événement est terminé.
  *
  * La comparaison porte sur la fin quand elle est connue, et sur le début
  * sinon. Un événement sans heure de fin reste donc « à venir » tant que son
  * début n'est pas passé, ce qui est le comportement attendu.
+ *
+ * `journeeEntiere` compte : un événement d'une journée entière sans heure de fin
+ * dure jusqu'à la fin de son jour, et non jusqu'à son début.
  */
-export function estPasse(debutLe: string, finLe: string | null, maintenant = new Date()): boolean {
-  const reference = finLe === null ? instant(debutLe) : instant(finLe);
+export function estPasse(
+  debutLe: string,
+  finLe: string | null,
+  journeeEntiere: boolean,
+  maintenant = new Date(),
+): boolean {
+  const reference = referenceDeFin(debutLe, finLe, journeeEntiere);
   if (reference === null) {
     return false;
   }
   return reference.getTime() < maintenant.getTime();
 }
 
-/** Vrai si l'événement est en cours. */
+/**
+ * Vrai si l'événement est en cours.
+ *
+ * Un événement d'une journée entière est « en cours » toute sa journée, même
+ * sans heure de fin : c'est ce que la case « toute la journée » affirme.
+ */
 export function estEnCours(
   debutLe: string,
   finLe: string | null,
+  journeeEntiere: boolean,
   maintenant = new Date(),
 ): boolean {
   const debut = instant(debutLe);
   if (debut === null || debut.getTime() > maintenant.getTime()) {
     return false;
   }
-  if (finLe === null) {
-    return false;
-  }
-  const fin = instant(finLe);
+
+  const fin = referenceDeFin(debutLe, finLe, journeeEntiere);
   return fin !== null && fin.getTime() >= maintenant.getTime();
 }
 
@@ -286,6 +330,19 @@ export function versJourCivil(valeur: Date): string {
 /** Le jour civil d'aujourd'hui, dans le fuseau du téléphone. */
 export function jourCourant(maintenant = new Date()): string {
   return versJourCivil(maintenant);
+}
+
+/**
+ * Le premier instant du jour d'une date, dans le fuseau du téléphone.
+ *
+ * Sert de BORNE de séparation entre « aujourd'hui et après » et « avant
+ * aujourd'hui ». Comparer à l'instant courant, comme le faisait l'agenda,
+ * classait dans le passé tout ce qui avait commencé — une sortie scolaire de la
+ * journée, dès minuit, et une réunion en cours. La journée est la maille à
+ * laquelle un parent pense ; c'est donc elle qui sépare.
+ */
+export function debutDuJour(valeur: Date = new Date()): Date {
+  return new Date(valeur.getFullYear(), valeur.getMonth(), valeur.getDate());
 }
 
 /** Décale une date d'un nombre de jours, sans passer par les millisecondes. */

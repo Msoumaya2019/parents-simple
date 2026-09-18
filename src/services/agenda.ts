@@ -5,6 +5,14 @@
  * passés. Un parent qui cherche « c'était quand, la réunion sur les CM2 ? » a
  * besoin des deux, et une liste unique obligerait à faire défiler des mois
  * d'historique pour retrouver une date récente.
+ *
+ * LES DEUX LISTES PARTAGENT LE JOUR COURANT, ET NE SE RECOUVRENT PAS
+ * ------------------------------------------------------------------
+ * « À venir » commence au premier instant du jour courant ; « passés » s'arrête
+ * juste avant. La journée entière appartient donc à la première — le seul
+ * découpage où une sortie scolaire du jour et une réunion en cours restent là
+ * où un parent les cherche. Comparer à l'instant courant, comme on le faisait,
+ * rangeait dans le passé tout ce qui avait commencé.
  */
 
 import type { EvenementAgenda } from '@/types/models';
@@ -35,14 +43,16 @@ function versEvenement(ligne: LigneEvenement): EvenementAgenda {
 }
 
 /**
- * Les prochains événements.
+ * Les événements d'aujourd'hui et à venir.
  *
- * La borne est un instant ISO : `debut_le` est un `timestamptz`, la comparaison
- * porte donc sur un moment précis, et non sur un jour.
+ * `debut_le` est un `timestamptz`, la comparaison porte donc sur un instant. La
+ * borne, elle, est le PREMIER INSTANT DU JOUR, et non l'instant courant : un
+ * événement qui a commencé n'est pas terminé, et la réunion de 18 h doit rester
+ * dans cette liste quand le parent ouvre l'application à 19 h.
  *
- * Un événement sans heure de fin est inclus tant que son début n'est pas passé.
- * C'est le comportement souhaité — on ne peut pas savoir qu'il est terminé — et
- * c'est pourquoi la borne porte sur `debut_le` et non sur `fin_le`.
+ * La borne porte sur `debut_le` et non sur `fin_le` parce que `fin_le` est
+ * facultatif : filtrer sur la fin écarterait tous les événements sans heure de
+ * fin, c'est-à-dire une bonne part d'entre eux.
  */
 export async function listerProchainsEvenements(
   depuisIso: string,
@@ -60,7 +70,7 @@ export async function listerProchainsEvenements(
   return lignes.map(versEvenement);
 }
 
-/** Les événements passés, du plus récent au plus ancien. */
+/** Les événements des jours précédents, du plus récent au plus ancien. */
 export async function listerEvenementsPasses(
   avantIso: string,
   limite = 30,

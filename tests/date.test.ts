@@ -21,6 +21,7 @@ import { describe, it } from 'node:test';
 
 import {
   dateLongue,
+  debutDuJour,
   decalerJours,
   depuis,
   estEnCours,
@@ -55,6 +56,34 @@ describe('versJourCivil', () => {
 describe('jourCourant', () => {
   it('accepte une date injectée, pour rester testable', () => {
     assert.equal(jourCourant(new Date(2026, 8, 22, 12, 0)), '2026-09-22');
+  });
+});
+
+describe('debutDuJour', () => {
+  it('rend le premier instant du jour, sans garder l’heure', () => {
+    const borne = debutDuJour(new Date(2026, 8, 22, 19, 30, 45, 123));
+    assert.equal(borne.getHours(), 0);
+    assert.equal(borne.getMinutes(), 0);
+    assert.equal(borne.getSeconds(), 0);
+    assert.equal(borne.getMilliseconds(), 0);
+  });
+
+  it('reste le jour civil du parent, même à 23 h 59', () => {
+    // La borne sépare deux listes : elle doit désigner le jour du parent, et
+    // non un instant à cheval sur deux jours. C'est ce qui garantit qu'à
+    // 23 h 59 comme à minuit, la sortie scolaire du jour est dans « à venir ».
+    assert.equal(versJourCivil(debutDuJour(new Date(2026, 8, 22, 23, 59))), '2026-09-22');
+  });
+
+  it('est identique à minuit et à midi du même jour', () => {
+    assert.equal(
+      debutDuJour(new Date(2026, 8, 22, 0, 0)).getTime(),
+      debutDuJour(new Date(2026, 8, 22, 12, 0)).getTime(),
+    );
+  });
+
+  it('franchit une fin de mois sans se tromper de jour', () => {
+    assert.equal(versJourCivil(debutDuJour(new Date(2026, 9, 1, 8, 0))), '2026-10-01');
   });
 });
 
@@ -163,15 +192,15 @@ describe('estPasse et estEnCours', () => {
   it('considère un événement terminé comme passé', () => {
     const debut = new Date(2026, 8, 22, 18, 0).toISOString();
     const fin = new Date(2026, 8, 22, 18, 30).toISOString();
-    assert.equal(estPasse(debut, fin, maintenant), true);
-    assert.equal(estEnCours(debut, fin, maintenant), false);
+    assert.equal(estPasse(debut, fin, false, maintenant), true);
+    assert.equal(estEnCours(debut, fin, false, maintenant), false);
   });
 
   it('considère un événement en cours comme non passé', () => {
     const debut = new Date(2026, 8, 22, 18, 0).toISOString();
     const fin = new Date(2026, 8, 22, 20, 0).toISOString();
-    assert.equal(estPasse(debut, fin, maintenant), false);
-    assert.equal(estEnCours(debut, fin, maintenant), true);
+    assert.equal(estPasse(debut, fin, false, maintenant), false);
+    assert.equal(estEnCours(debut, fin, false, maintenant), true);
   });
 
   it('marque passé un événement sans heure de fin dès que son début est dépassé', () => {
@@ -181,14 +210,65 @@ describe('estPasse et estEnCours', () => {
     // « en ce moment » pour un événement dont on ignore la fin serait une
     // affirmation que l'application n'est pas en mesure de soutenir.
     const debut = new Date(2026, 8, 22, 18, 0).toISOString();
-    assert.equal(estPasse(debut, null, maintenant), true);
-    assert.equal(estEnCours(debut, null, maintenant), false);
+    assert.equal(estPasse(debut, null, false, maintenant), true);
+    assert.equal(estEnCours(debut, null, false, maintenant), false);
   });
 
   it('ne marque ni passé ni en cours un événement sans fin encore à venir', () => {
     const debut = new Date(2026, 8, 22, 20, 0).toISOString();
-    assert.equal(estPasse(debut, null, maintenant), false);
-    assert.equal(estEnCours(debut, null, maintenant), false);
+    assert.equal(estPasse(debut, null, false, maintenant), false);
+    assert.equal(estEnCours(debut, null, false, maintenant), false);
+  });
+
+  it('tient un événement d’une journée entière pour en cours jusqu’à la fin de son jour', () => {
+    // Le cas qui manquait, et qui était faux à l'écran. Une sortie scolaire
+    // saisie « journée entière », sans heure de fin, était tenue pour terminée
+    // dès la première seconde du jour : la carte s'affichait atténuée, sans la
+    // pastille « En ce moment », le jour même — au moment précis où le parent
+    // la cherche.
+    const debut = new Date(2026, 8, 22, 0, 0).toISOString();
+    assert.equal(estPasse(debut, null, true, maintenant), false);
+    assert.equal(estEnCours(debut, null, true, maintenant), true);
+  });
+
+  it('tient encore un événement d’une journée entière à 23 h 59', () => {
+    const debut = new Date(2026, 8, 22, 9, 0).toISOString();
+    const presqueMinuit = new Date(2026, 8, 22, 23, 59, 0);
+    assert.equal(estPasse(debut, null, true, presqueMinuit), false);
+    assert.equal(estEnCours(debut, null, true, presqueMinuit), true);
+  });
+
+  it('bascule un événement d’une journée entière le lendemain', () => {
+    // La journée finit à 23 h 59 min 59 s ; la milliseconde suivante, elle est
+    // passée. Sans cette borne haute, une journée entière ne finirait jamais.
+    const debut = new Date(2026, 8, 22, 9, 0).toISOString();
+    const demain = new Date(2026, 8, 23, 0, 0, 0, 1);
+    assert.equal(estPasse(debut, null, true, demain), true);
+    assert.equal(estEnCours(debut, null, true, demain), false);
+  });
+
+  it('ne marque pas en cours un événement d’une journée entière à venir', () => {
+    const debut = new Date(2026, 8, 23, 9, 0).toISOString();
+    assert.equal(estPasse(debut, null, true, maintenant), false);
+    assert.equal(estEnCours(debut, null, true, maintenant), false);
+  });
+
+  it('préfère l’heure de fin connue au drapeau « journée entière »', () => {
+    // Un événement saisi « journée entière » qui porte malgré tout une heure de
+    // fin : c'est la fin qui tranche. Ignorer la fin au motif du drapeau
+    // laisserait la carte marquée « en ce moment » jusqu'à minuit, alors que
+    // l'école a écrit noir sur blanc que cela finissait à 18 h.
+    const debut = new Date(2026, 8, 22, 8, 0).toISOString();
+    const fin = new Date(2026, 8, 22, 18, 0).toISOString();
+    assert.equal(estPasse(debut, fin, true, maintenant), true);
+    assert.equal(estEnCours(debut, fin, true, maintenant), false);
+  });
+
+  it('n’affirme rien sur une date invalide', () => {
+    // `referenceDeFin` rend `null` : rien ne peut être soutenu. Les deux
+    // fonctions répondent « non » plutôt que de lever.
+    assert.equal(estPasse('pas une date', null, true, maintenant), false);
+    assert.equal(estEnCours('pas une date', null, true, maintenant), false);
   });
 });
 

@@ -446,6 +446,30 @@ Une coche verte pour une simple configuration serait un mensonge utile à
 personne : sur un téléphone sans réseau, elle laisserait croire que l'école n'a
 rien publié.
 
+### La séparation de l'agenda
+
+L'onglet Agenda a deux listes, « À venir » et « Passés ». Un événement commencé
+n'est pas un événement passé : une sortie scolaire de la journée, et une réunion
+de 18 h quand le parent ouvre l'application à 19 h, doivent rester dans
+« À venir » — là où il les cherche.
+
+Les deux listes étaient pourtant bornées par l'instant courant, si bien que tout
+ce qui avait commencé basculait dans « Passés » : atténué, et sans la pastille
+« En ce moment », qui se lit dans la carte et donc dans la liste.
+
+Deux règles le tiennent maintenant :
+
+- la **borne** est le premier instant du jour (`debutDuJour`), et les deux listes
+  la partagent — `gte` d'un côté, `lt` de l'autre, ce qui interdit aussi bien le
+  trou que le recouvrement ;
+- le **repère de fin** d'un événement « journée entière » sans heure de fin est
+  la fin de son jour, et non son début : sans cela, « toute la journée » ne veut
+  rien dire, et la sortie scolaire s'affichait atténuée le jour même.
+
+`tests/agenda-separation.test.ts` relit le filtre tel qu'il est écrit dans
+`src/services/agenda.ts`, vérifie qu'il partitionne les instants, et exige
+l'accord entre le marquage et la liste où il s'affiche.
+
 ---
 
 ## Sécurité

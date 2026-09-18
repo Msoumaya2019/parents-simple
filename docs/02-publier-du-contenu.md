@@ -242,8 +242,14 @@ début le 22 à 18 h 30 et une fin le 21 à 20 h est refusé. En cas de doute su
 l'heure de fin, laisser `fin_le` vide — l'événement s'affiche alors sans horaire
 de fin, ce qui vaut mieux qu'une horloge fausse.
 
-Un événement apparaît dans « À venir » tant que son début n'est pas passé. Il
-bascule ensuite dans « Passés », où il reste consultable.
+Un événement apparaît dans « À venir » tant que son **jour** n'est pas passé : la
+réunion de 18 h reste donc dans « À venir » quand un parent ouvre l'application à
+19 h, marquée « En ce moment ». Il bascule dans « Passés » le lendemain, où il
+reste consultable.
+
+Un événement marqué `journee_entiere` et sans heure de fin reste dans « À venir »
+jusqu'à la fin de son jour — c'est ce que la case affirme. S'il porte malgré tout
+une heure de fin, c'est elle qui tranche.
 
 ---
 
