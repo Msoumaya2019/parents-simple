@@ -403,7 +403,7 @@ app/                        Écrans (expo-router : le fichier EST la route)
   (tabs)/                   Les cinq onglets
   annonce/[id].tsx          Détail d'une actualité
   documents.tsx             Liste des documents
-  reglages.tsx              Apparence et diagnostic
+  reglages.tsx              Apparence et diagnostic (sonde la base pour de vrai)
   confidentialite.tsx       Politique de confidentialité
 src/
   components/ui/            AppText, Card, Button, TextField, états…
@@ -412,7 +412,8 @@ src/
   config/                   Lecture de l'environnement, client Supabase
   errors/                   Traduction des erreurs en français
   hooks/                    Chargement asynchrone dérivé, rafraîchissement par glissement
-  lib/                      Identifiants, votes locaux, règles de chargement, du responsable et d'adresse
+  lib/                      Règles pures : identifiants, votes locaux, chargement, responsable,
+                            adresse, diagnostic
   providers/                Thème clair/sombre
   services/                 Une fonction par requête
   theme/                    Palettes et échelles
@@ -431,6 +432,19 @@ L'administration est une application distincte, avec son propre
 mélangent pas — `tsconfig.json` et `eslint.config.mjs` l'excluent explicitement
 de l'outillage de l'application mobile, et elle a son propre contrôle dans
 l'intégration continue.
+
+### Le diagnostic de l'écran Réglages
+
+Quand l'application n'affiche rien, la question est de savoir si c'est l'école
+qui n'a rien publié ou l'application qui n'atteint pas sa base. La ligne
+« Base de données » ne dit que ce qu'elle sait — l'adresse est renseignée — et
+c'est la ligne « Connexion » qui tranche, en s'appuyant sur une requête réelle
+(`src/services/diagnostic.ts`). La règle d'affichage vit dans
+`src/lib/diagnostic.ts`, tenue par `tests/diagnostic.test.ts`.
+
+Une coche verte pour une simple configuration serait un mensonge utile à
+personne : sur un téléphone sans réseau, elle laisserait croire que l'école n'a
+rien publié.
 
 ---
 

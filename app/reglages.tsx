@@ -13,15 +13,31 @@
  * la clé publique n'est jamais affichée. Elle est de toute façon extractible du
  * binaire, mais l'afficher à l'écran en faciliterait la copie — y compris par
  * capture d'écran, dans un message.
+ *
+ * CE QU'ELLE AFFIRME, ET CE QU'ELLE AFFIRME SEULEMENT
+ * ---------------------------------------------------
+ * « Configurée » et « joignable » sont deux faits différents, et les confondre
+ * était un défaut : la coche verte s'affichait dès que l'adresse était
+ * renseignée, y compris sur un téléphone sans réseau. Le parent concluait alors
+ * que tout allait bien, donc que l'école n'avait rien publié — l'inverse de la
+ * question que cette section prétend trancher.
+ *
+ * La ligne « Base de données » ne dit donc plus que ce qu'elle sait, et c'est la
+ * ligne « Connexion » qui porte le verdict : elle s'appuie sur une requête
+ * réelle (`src/services/diagnostic.ts`), et `src/lib/diagnostic.ts` décide de ce
+ * qui se lit pour chaque état.
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AppText, Card, Screen } from '@/components/ui';
+import { AppText, Button, Card, Screen } from '@/components/ui';
 import { appConfig } from '@/config/env';
+import { useAsyncData } from '@/hooks/useAsyncData';
+import { diagnosticConnexion, type TonDiagnostic } from '@/lib/diagnostic';
 import { useTheme, type PreferenceTheme } from '@/providers/theme-provider';
+import { verifierJoignabilite } from '@/services/diagnostic';
 
 const OPTIONS: readonly {
   readonly valeur: PreferenceTheme;
@@ -47,6 +63,11 @@ export default function ReglagesScreen(): React.JSX.Element {
       : // On n'affiche que l'hôte : la clé publique, même si elle est
         // extractible du binaire, n'a pas à être recopiée à l'écran.
         appConfig.supabase.url.replace(/^https:\/\//, '');
+
+  // La sonde part au montage de l'écran. Le parent qui l'ouvre vient d'un écran
+  // vide : c'est le moment où la question se pose.
+  const connexion = useAsyncData('diagnostic-connexion', verifierJoignabilite);
+  const diagnostic = diagnosticConnexion(adresseBase !== null, connexion.etat.statut);
 
   return (
     <Screen edges={[]} scrollable>
@@ -112,9 +133,27 @@ export default function ReglagesScreen(): React.JSX.Element {
           <LigneDiagnostic
             libelle="Base de données"
             valeur={adresseBase === null ? 'Non configurée' : adresseBase}
-            correcte={adresseBase !== null}
+            // `neutre` et non `succes` : avoir une adresse ne prouve pas que la
+            // base répond. C'est la ligne suivante qui en juge.
+            ton="neutre"
           />
-          <LigneDiagnostic libelle="Version" valeur={version} correcte />
+          <LigneDiagnostic libelle="Connexion" valeur={diagnostic.libelle} ton={diagnostic.ton} />
+          <LigneDiagnostic libelle="Version" valeur={version} ton="neutre" />
+
+          {diagnostic.aide !== null ? (
+            <AppText variant="caption" color="muted" style={styles.aide}>
+              {diagnostic.aide}
+            </AppText>
+          ) : null}
+
+          {connexion.etat.statut === 'erreur' ? (
+            <Button
+              libelle="Réessayer"
+              variant="secondaire"
+              onPress={connexion.recharger}
+              style={{ marginTop: theme.spacing.md }}
+            />
+          ) : null}
 
           {appConfig.configError !== null ? (
             <AppText variant="caption" color="danger" style={{ marginTop: theme.spacing.md }}>
@@ -147,25 +186,36 @@ export default function ReglagesScreen(): React.JSX.Element {
   );
 }
 
+/** L'icône qui accompagne chaque ton. Le ton vient de `@/lib/diagnostic`. */
+const ICONE_PAR_TON: Record<TonDiagnostic, keyof typeof Ionicons.glyphMap> = {
+  succes: 'checkmark-circle-outline',
+  alerte: 'alert-circle-outline',
+  danger: 'close-circle-outline',
+  neutre: 'ellipse-outline',
+};
+
 function LigneDiagnostic({
   libelle,
   valeur,
-  correcte,
+  ton,
 }: {
   readonly libelle: string;
   readonly valeur: string;
-  readonly correcte: boolean;
+  readonly ton: TonDiagnostic;
 }): React.JSX.Element {
   const { theme } = useTheme();
+
+  const couleur = {
+    succes: theme.colors.success,
+    alerte: theme.colors.warning,
+    danger: theme.colors.danger,
+    neutre: theme.colors.textMuted,
+  }[ton];
 
   return (
     <View style={[styles.ligneDiagnostic, { paddingVertical: theme.spacing.sm }]}>
       <View style={styles.diagnosticLibelle}>
-        <Ionicons
-          name={correcte ? 'checkmark-circle-outline' : 'alert-circle-outline'}
-          size={18}
-          color={correcte ? theme.colors.success : theme.colors.warning}
-        />
+        <Ionicons name={ICONE_PAR_TON[ton]} size={18} color={couleur} />
         <AppText variant="body" color="secondary">
           {libelle}
         </AppText>
@@ -213,5 +263,8 @@ const styles = StyleSheet.create({
   diagnosticValeur: {
     flexShrink: 1,
     textAlign: 'right',
+  },
+  aide: {
+    lineHeight: 18,
   },
 });
