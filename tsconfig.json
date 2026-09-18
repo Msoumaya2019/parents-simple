@@ -11,10 +11,30 @@
     // `node:assert` et propose d'installer `@types/node`, qui est pourtant
     // déjà installé.
     "types": ["node"],
+    // Les bancs importent deux fichiers qui vivent hors de `src/` : l'outillage
+    // partagé de `tests/aide/`, et le refus des clés de la page
+    // d'administration, que `tests/cles-refusees.test.ts` confronte à celui de
+    // l'application. Or Node, pour un import RELATIF, exige l'extension — sans
+    // elle, le banc ne se charge pas du tout (`ERR_MODULE_NOT_FOUND`, mesuré).
+    // TypeScript la refuse par défaut, et cette option l'accepte. Le `--noEmit`
+    // du script `typecheck` est ce qui la rend légitime.
+    //
+    // L'autre issue aurait été d'apprendre au greffon de `scripts/` à compléter
+    // les extensions relatives. Elle a été écartée : le greffon a une
+    // responsabilité unique et documentée — traduire `@/` — et lui en ajouter
+    // une seconde ferait résoudre les bancs par un chemin que `tsc` ne connaît
+    // pas, c'est-à-dire créer un accord de plus à tenir. L'extension explicite
+    // a en outre l'avantage de montrer, à la lecture, qu'un banc sort de `src/`.
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": ["node_modules", "dist", ".expo"]
+  // `admin` a son propre `tsconfig.json` : c'est une application distincte, avec
+  // ses propres réglages — `jsx: react-jsx` pour le navigateur, `lib: DOM`, et
+  // un `moduleResolution` adapté à un empaqueteur. Sans cette exclusion, ce
+  // fichier-ci compilerait les sources de l'administration avec les réglages de
+  // l'application mobile, et signalerait des erreurs qui n'en sont pas.
+  "exclude": ["node_modules", "dist", ".expo", "admin"]
 }

@@ -19,10 +19,22 @@
  *
  * Ce qu'il doit trouver :
  *   - le contenu publié est lisible ;
- *   - `messages` et `sondage_votes` ne le sont pas ;
- *   - AUCUNE écriture directe n'est possible ;
+ *   - `messages`, `sondage_votes` et `membres_bureau` ne le sont pas ;
+ *   - AUCUNE écriture directe n'est possible, ni dans les tables ni dans les
+ *     deux compartiments de stockage ;
  *   - les trois fonctions exposées répondent, et refusent ce qu'elles doivent
- *     refuser.
+ *     refuser ;
+ *   - les fonctions réservées au bureau ne sont pas exposées du tout.
+ *
+ * CE QU'IL VÉRIFIE DEPUIS L'OUVERTURE DE L'ÉCRITURE AU BUREAU
+ * ----------------------------------------------------------
+ * `supabase/migrations/20260918001000_membres_bureau.sql` accorde l'écriture au
+ * rôle `authenticated`, pour que le bureau publie depuis une page web. Ce
+ * script éprouve la seule chose qui compte alors : que cette ouverture n'ait
+ * rien laissé passer du côté de la clé publique. Un `grant` trop large, une
+ * politique écrite `to public` au lieu de `to authenticated`, et l'application
+ * de l'école deviendrait modifiable par n'importe qui — sans qu'aucun test ne
+ * s'en aperçoive, puisque l'application ne fait que lire.
  *
  * Aucune de ces requêtes ne modifie la base. Les appels aux fonctions sont
  * choisis pour échouer avant toute insertion : un sondage inexistant pour
@@ -37,6 +49,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const DELAI_MS = 20_000;
 
@@ -50,8 +63,31 @@ const TABLES_LISIBLES = [
   'sondage_choix',
 ];
 
-/** Tables sensibles : ni lisibles ni écrivables. */
-const TABLES_FERMEES = ['messages', 'sondage_votes'];
+/**
+ * Tables sensibles : ni lisibles ni écrivables.
+ *
+ * `membres_bureau` en fait partie, et c'est ce qui rend le reste vérifiable :
+ * tant que cette table répond 404, la migration des membres du bureau n'est pas
+ * appliquée, et tout ce qui suit se contenterait d'un « absent » pris pour un
+ * « refusé ». La présence de la table est donc le premier maillon de la chaîne.
+ */
+const TABLES_FERMEES = ['messages', 'sondage_votes', 'membres_bureau'];
+
+/**
+ * Un PNG d'un pixel, en hexadécimal.
+ *
+ * Le stockage refuse d'abord sur le type MIME : un témoin `text/plain` reçoit
+ * un 400 « invalid_mime_type » AVANT que les droits soient regardés. Le
+ * contrôle passerait alors pour une raison qui n'a rien à voir avec la
+ * sécurité. Il faut donc un type que les deux compartiments acceptent, et un
+ * contenu réellement valide pour qu'aucune autre vérification n'échoue avant
+ * la politique.
+ */
+const TEMOIN_PNG = Buffer.from(
+  '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489' +
+    '0000000a49444154789c6300010000050001',
+  'hex',
+);
 
 const resultats = [];
 
@@ -229,6 +265,11 @@ async function verifierEcrituresRefusees() {
       { service_date: '2026-01-01' },
     ],
     ['insertion dans documents', '/rest/v1/documents', 'POST', { titre: 'intrusion' }],
+    // `sondages` et `sondage_choix` ont reçu un droit d'écriture pour le rôle
+    // `authenticated` avec la migration des membres du bureau. Ce sont donc les
+    // tables où un `grant` trop large se verrait en premier.
+    ['insertion dans sondages', '/rest/v1/sondages', 'POST', { question: 'intrusion' }],
+    ['insertion dans sondage_choix', '/rest/v1/sondage_choix', 'POST', { libelle: 'intrusion' }],
     ['insertion dans messages', '/rest/v1/messages', 'POST', { sujet: 'intrusion', corps: 'x' }],
     ['insertion dans sondage_votes', '/rest/v1/sondage_votes', 'POST', { sondage_id: 'x' }],
     [
@@ -340,7 +381,27 @@ async function verifierFonctions() {
   }
 
   // 4. Aucune fonction d'administration ne doit être exposée à la clé publique.
-  const fonctionsInterdites = ['set_updated_at', 'verifier_vote_coherent'];
+  //
+  //    `est_membre_bureau` est accordée au rôle `authenticated`, jamais à
+  //    `anon` : avec la clé publique, PostgREST ne la trouve pas et répond 404.
+  //    `ajouter_membre_bureau` n'est accordée à personne — un membre du bureau
+  //    ne doit pas pouvoir s'ajouter de collègue.
+  //
+  //    LE 404 EST AMBIGU, ET C'EST LA TABLE QUI LÈVE LE DOUTE
+  //    ------------------------------------------------------
+  //    PostgREST répond 404 aussi bien pour « cette fonction existe mais ne
+  //    vous est pas accordée » que pour « cette fonction n'existe pas ». Un 404
+  //    sur `est_membre_bureau` passerait donc pour un succès alors qu'il
+  //    signalerait une migration non appliquée. Ce qui rend l'interprétation
+  //    sûre est ailleurs, et dans cet ordre : la lecture de `membres_bureau` a
+  //    exigé un refus 401/403, ce qui prouve que la migration EST appliquée.
+  //    Un 404 ici veut donc bien dire « non exposée ».
+  const fonctionsInterdites = [
+    'set_updated_at',
+    'verifier_vote_coherent',
+    'est_membre_bureau',
+    'ajouter_membre_bureau',
+  ];
   for (const fonction of fonctionsInterdites) {
     try {
       const { statut } = await appeler(`/rest/v1/rpc/${fonction}`, {
@@ -354,6 +415,81 @@ async function verifierFonctions() {
   }
 }
 
+/**
+ * Une écriture est-elle refusée faute de droit ?
+ *
+ * ATTENTION AU STATUT : LE STOCKAGE NE RÉPOND PAS COMME L'API REST
+ * ----------------------------------------------------------------
+ * L'API REST refuse une écriture par un 401 ou un 403. Le service de stockage,
+ * lui, répond **HTTP 400** et met le refus DANS LE CORPS. Mesuré, avec la clé
+ * publique et un PNG valide :
+ *
+ *   POST /storage/v1/object/annonces/temoin.png  ->  HTTP 400
+ *   {"statusCode":403,"error":"Unauthorized",
+ *    "message":"new row violates row-level security policy","code":"AccessDenied"}
+ *
+ * Et `statusCode` y est une CHAÎNE, pas un nombre. Une comparaison stricte
+ * `corps.statusCode === 403` ne correspond donc jamais : le contrôle échoue
+ * alors que l'écriture est bien refusée. C'est exactement ce qui s'est produit
+ * au premier essai — mesuré, deux échecs sur les deux compartiments, avec le
+ * corps ci-dessus sous les yeux.
+ *
+ * Exiger 401/403 ici ferait donc échouer le contrôle alors que l'écriture EST
+ * refusée. Mais accepter 400 sans lire le corps serait pire : un 400 est aussi
+ * ce que produit un type de fichier refusé ou une charge utile mal formée, et
+ * le contrôle deviendrait muet — il passerait même si les droits étaient
+ * ouverts, tant que la requête est mal formée.
+ *
+ * On exige donc le refus explicitement dans le corps, en plus du statut.
+ */
+export function refusDeDroit(statut, corps) {
+  if (statut === 401 || statut === 403) {
+    return true;
+  }
+
+  if (corps === null || typeof corps !== 'object') {
+    return false;
+  }
+
+  const code = String(corps.statusCode ?? '');
+  return (
+    (code === '401' || code === '403') &&
+    (corps.error === 'Unauthorized' || corps.code === 'AccessDenied')
+  );
+}
+
+/**
+ * Le stockage refuse-t-il l'écriture à un inconnu ?
+ *
+ * C'est le contrôle le plus important ajouté avec la page d'administration. Les
+ * deux compartiments sont publics en LECTURE — un parent doit pouvoir ouvrir un
+ * PDF sans compte. Une politique d'écriture écrite `to public` au lieu de
+ * `to authenticated` les rendrait modifiables par n'importe qui, et le premier
+ * signe visible serait une photographie remplacée dans une annonce.
+ */
+async function verifierEcritureStockageRefusee() {
+  for (const compartiment of ['annonces', 'documents']) {
+    const chemin = `/storage/v1/object/${compartiment}/controle-securite.png`;
+
+    try {
+      const { statut, corps } = await appeler(chemin, {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/png' },
+        body: TEMOIN_PNG,
+      });
+
+      const refuse = refusDeDroit(statut, corps);
+      journaliser(
+        `stockage ${compartiment} : écriture refusée`,
+        refuse,
+        refuse ? `HTTP ${statut} — refus dans le corps` : `HTTP ${statut} — ${messageDe(corps)}`,
+      );
+    } catch (cause) {
+      journaliser(`stockage ${compartiment} : écriture refusée`, false, cause.message);
+    }
+  }
+}
+
 async function principal() {
   console.log(`Base interrogée : ${URL_BASE}`);
   console.log('');
@@ -362,6 +498,7 @@ async function principal() {
   await verifierLectureAutorisee();
   await verifierLectureInterdite();
   await verifierEcrituresRefusees();
+  await verifierEcritureStockageRefusee();
   await verifierFonctions();
 
   const echecs = resultats.filter((r) => !r.ok);
@@ -382,4 +519,15 @@ async function principal() {
   console.log('Les politiques de sécurité se comportent comme prévu.');
 }
 
-await principal();
+/**
+ * N'interroge la base que si ce fichier est LANCÉ, jamais s'il est importé.
+ *
+ * Sans cette garde, `tests/refus-de-droit.test.mjs` déclencherait tout le
+ * contrôle en important la fonction qu'il éprouve : la suite de tests se
+ * mettrait alors à dépendre du réseau et de secrets, ce que ce projet refuse
+ * partout ailleurs. Un test qui ne tourne qu'avec la base joignable ne protège
+ * rien le jour où on en a besoin.
+ */
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await principal();
+}

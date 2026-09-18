@@ -36,6 +36,10 @@ export default tseslint.config(
       'scripts/**',
       // Journal de travail et notes de projet : hors du code livré.
       '.workbuddy-ai/**',
+      // Le paquet construit par Vite. Il est ignoré pour deux raisons : le
+      // relire ne dit rien du code source, et il produit à lui seul plus de
+      // mille signalements qui masqueraient les vrais.
+      'admin/dist/**',
     ],
   },
 

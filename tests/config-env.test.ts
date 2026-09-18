@@ -33,6 +33,15 @@
  * c'est le seul test du fichier qui échouerait sur l'ancien code, et il existe
  * pour que le seuil ne revienne pas sous une autre forme.
  *
+ * CE QUE CE FICHIER NE FAIT PLUS, ET OÙ C'EST ALLÉ
+ * ------------------------------------------------
+ * La mécanique d'environnement — poser les variables, appeler `construire()`,
+ * restaurer même en cas d'échec — vit désormais dans `tests/aide/environnement.ts`,
+ * parce qu'un second banc en a besoin : `cles-refusees.test.ts` confronte ce
+ * refus à celui de la page d'administration. Les témoins, eux, restent ici :
+ * c'est ce banc qui éprouve le refus de l'application pour lui-même, l'autre
+ * n'éprouvant que l'accord entre les deux listes.
+ *
  * Exécution : `npm test`
  */
 
@@ -41,85 +50,11 @@ import { describe, it } from 'node:test';
 
 import { construire } from '@/config/env';
 
-const ADRESSE = 'https://exemple.supabase.co';
-
-type NomVariable =
-  'EXPO_PUBLIC_SUPABASE_URL' | 'EXPO_PUBLIC_SUPABASE_ANON_KEY' | 'EXPO_PUBLIC_APP_ENV';
-
-const VARIABLES: readonly NomVariable[] = [
-  'EXPO_PUBLIC_SUPABASE_URL',
-  'EXPO_PUBLIC_SUPABASE_ANON_KEY',
-  'EXPO_PUBLIC_APP_ENV',
-];
-
-/** Encode en base64url, la forme qu'utilisent les JWT. */
-function base64url(texte: string): string {
-  return Buffer.from(texte, 'utf8')
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-/**
- * Fabrique un JWT de la forme réelle, avec la charge utile demandée.
- *
- * La signature n'est pas valide — et c'est sans importance : le contrôle ne
- * vérifie pas les signatures, il lit le champ `role` pour produire un message.
- * Un test qui signerait vraiment ne prouverait rien de plus.
- */
-function jeton(charge: Record<string, unknown>): string {
-  const entete = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const corps = base64url(JSON.stringify(charge));
-  return `${entete}.${corps}.${base64url('signature-factice')}`;
-}
+import { ADRESSE, jeton, refuseeParLApplication, surEnvironnement } from './aide/environnement.ts';
 
 /** Un JWT de clé publique, tel que Supabase en émet pour `anon`. */
 function jetonAnon(): string {
   return jeton({ iss: 'supabase', ref: 'exemple', role: 'anon', iat: 1_760_000_000 });
-}
-
-/** Exécute `construire()` sur un environnement choisi, puis le remet en place. */
-function surEnvironnement(valeurs: Partial<Record<NomVariable, string>>, action: () => void): void {
-  const sauvegarde = VARIABLES.map((nom) => [nom, process.env[nom]] as const);
-
-  try {
-    for (const nom of VARIABLES) {
-      const valeur = valeurs[nom];
-      if (valeur === undefined) {
-        delete process.env[nom];
-      } else {
-        process.env[nom] = valeur;
-      }
-    }
-
-    action();
-  } finally {
-    // La restauration passe par `finally` : un test qui échoue ne doit pas
-    // laisser derrière lui un environnement modifié pour les suivants.
-    for (const [nom, valeur] of sauvegarde) {
-      if (valeur === undefined) {
-        delete process.env[nom];
-      } else {
-        process.env[nom] = valeur;
-      }
-    }
-  }
-}
-
-/** Vrai si la configuration a été refusée. */
-function refusee(cle: string): boolean {
-  let refus = false;
-
-  surEnvironnement(
-    { EXPO_PUBLIC_SUPABASE_URL: ADRESSE, EXPO_PUBLIC_SUPABASE_ANON_KEY: cle },
-    () => {
-      const configuration = construire();
-      refus = configuration.supabase === null && configuration.configError !== null;
-    },
-  );
-
-  return refus;
 }
 
 describe('refus des clés à privilèges', () => {
@@ -128,18 +63,18 @@ describe('refus des clés à privilèges', () => {
     // JWT ne la verrait pas passer — or c'est la forme que Supabase met
     // aujourd'hui en avant, et sa documentation indique qu'elle contourne les
     // politiques RLS.
-    assert.equal(refusee('sb_secret_AbCdEf0123456789'), true);
+    assert.equal(refuseeParLApplication('sb_secret_AbCdEf0123456789'), true);
   });
 
   it('refuse un jeton d’accès personnel, `sbp_…`', () => {
     // Il ne fonctionnerait pas comme clé d'application : le refus sert ici à
     // nommer la cause, plutôt qu'à laisser échouer la première requête.
-    assert.equal(refusee('sbp_AbCdEf0123456789'), true);
+    assert.equal(refuseeParLApplication('sbp_AbCdEf0123456789'), true);
   });
 
   it('refuse un JWT dont le rôle est `service_role`', () => {
     const cle = jeton({ iss: 'supabase', ref: 'exemple', role: 'service_role' });
-    assert.equal(refusee(cle), true);
+    assert.equal(refuseeParLApplication(cle), true);
   });
 
   it('refuse un JWT `service_role` court — le cas que l’ancien seuil laissait passer', () => {
@@ -150,7 +85,7 @@ describe('refus des clés à privilèges', () => {
     // contrôle est donc fait ici, et non supposé.
     assert.ok(cle.length < 200, `prémisse : la clé doit rester courte (mesurée : ${cle.length})`);
 
-    assert.equal(refusee(cle), true);
+    assert.equal(refuseeParLApplication(cle), true);
   });
 
   it('nomme la cause et la clé à utiliser à la place', () => {

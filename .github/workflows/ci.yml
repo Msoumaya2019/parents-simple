@@ -24,12 +24,21 @@
 #    sql:check     une table sans RLS, ou un droit de lecture accordé par
 #                  mégarde. Ces fautes ne se voient NULLE PART ailleurs : le
 #                  schéma s'applique sans erreur et l'application fonctionne.
+#    admin:check   une colonne, une borne ou une valeur d'énumération nommée de
+#                  travers dans la page d'administration. Ni `tsc` ni `export`
+#                  ne les regardent : le client Supabase déduit le type d'une
+#                  ligne de la TABLE, jamais de la chaîne passée à `select`.
+#                  La faute ne se verrait qu'à l'exécution, devant le bureau.
 #    export        le seul contrôle qui vérifie que les modules se résolvent
 #                  réellement dans le paquet. Ni tsc ni ESLint ne le font.
 #    base réelle   une colonne ajoutée au code sans migration appliquée, ou une
 #                  table renommée dans le schéma. Ni tsc ni les tests ne le
 #                  voient : les tests simulent la base. Seul un appel réel le
 #                  dit — et c'est le seul contrôle qui demande des secrets.
+#    admin         la page d'administration ne compile plus, ou une colonne y est
+#                  nommée de travers. Elle a son propre empaqueteur et son propre
+#                  tsconfig : ni `typecheck` ni `export` ne la regardent, et sans
+#                  cette étape elle pourrait pourrir sans que rien ne le dise.
 #
 #  Une seule étape demande donc des secrets, celle qui éprouve la base réelle,
 #  et elle est écartée des propositions de modification : une proposition venue
@@ -101,6 +110,14 @@ jobs:
       - name: Contrôler le schéma de la base
         run: npm run sql:check
 
+      # L'accord entre la page d'administration et le schéma. Placé avant la
+      # construction de l'administration, et c'est délibéré : il lit des
+      # sources, pas un paquet, donc il ne demande aucune installation et coûte
+      # une seconde. Le laisser derrière l'installation de `admin/` ferait
+      # attendre trente secondes pour un verdict qui n'en dépend pas.
+      - name: Contrôler l'accord avec l'administration
+        run: npm run admin:check
+
       # L'export est le seul contrôle qui fait réellement passer le paquet par
       # Metro. Un module natif mal déclaré, ou un import qui ne se résout qu'en
       # développement, échoue ici et nulle part ailleurs.
@@ -108,6 +125,20 @@ jobs:
         run: npm run export:android
         env:
           EXPO_NO_TELEMETRY: '1'
+
+      # L'administration est une seconde application, avec son propre
+      # `package.json` et son propre `package-lock.json`. `npm ci` y installe
+      # exactement l'arbre verrouillé, et échoue si les deux fichiers ont
+      # divergé — c'est précisément la divergence qu'on veut voir.
+      #
+      # Sa construction vérifie deux choses d'un coup : que les types passent
+      # (`tsc --noEmit`, appelé par le script `build`), et que Vite sait
+      # réellement empaqueter le tout.
+      - name: Installer les dépendances de l'administration
+        run: npm --prefix admin ci
+
+      - name: Construire l'administration
+        run: npm --prefix admin run build
 
       # POURQUOI IL EST ICI, ET PLUS SEULEMENT AVANT LA COMPILATION
       # ----------------------------------------------------------

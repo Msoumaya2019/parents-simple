@@ -1,0 +1,288 @@
+/*
+ * Feuille de style de la page d'administration.
+ *
+ * Écrite à la main, sans cadriciel : la page tient sur un écran, avec quatre
+ * formulaires et des listes. Une bibliothèque de composants coûterait plusieurs
+ * centaines de kilo-octets et une dépendance à suivre pendant des années, pour
+ * un résultat que ces quelques règles suffisent à produire.
+ *
+ * Les couleurs sont posées une fois en variables, et les deux jeux — clair et
+ * sombre — suivent le réglage du système. Un membre du bureau qui publie le
+ * soir n'a pas à subir un écran blanc.
+ */
+
+:root {
+  --fond: #f6f7f9;
+  --surface: #ffffff;
+  --bordure: #dfe3e8;
+  --encre: #1b1f24;
+  --encre-douce: #5c6670;
+  --accent: #1f5fa8;
+  --accent-encre: #ffffff;
+  --succes: #1c6b3f;
+  --succes-fond: #e8f5ed;
+  --erreur: #a12626;
+  --erreur-fond: #fdecec;
+  --rayon: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #14171a;
+    --surface: #1c2025;
+    --bordure: #2f353c;
+    --encre: #eef1f4;
+    --encre-douce: #a3adb8;
+    --accent: #7fb2e8;
+    --accent-encre: #10161d;
+    --succes: #8fd6ac;
+    --succes-fond: #17301f;
+    --erreur: #f0a3a3;
+    --erreur-fond: #351c1c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--encre);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.page {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+.entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.entete h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.entete p {
+  margin: 0;
+  color: var(--encre-douce);
+  font-size: 14px;
+}
+
+.onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.onglet {
+  border: 1px solid var(--bordure);
+  background: var(--surface);
+  color: var(--encre);
+  border-radius: 999px;
+  padding: 7px 15px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.onglet[aria-current='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-encre);
+}
+
+.carte {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.carte h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.carte > p.aide {
+  margin: 0 0 18px;
+  color: var(--encre-douce);
+  font-size: 14px;
+}
+
+.grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.champ label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--encre-douce);
+}
+
+.champ input,
+.champ select,
+.champ textarea {
+  font: inherit;
+  color: var(--encre);
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  padding: 9px 11px;
+  width: 100%;
+}
+
+.champ textarea {
+  min-height: 130px;
+  resize: vertical;
+}
+
+.champ input:focus,
+.champ select:focus,
+.champ textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.champ .compte {
+  font-size: 12px;
+  color: var(--encre-douce);
+  text-align: right;
+}
+
+.champ .compte.depasse {
+  color: var(--erreur);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.bouton {
+  font: inherit;
+  font-size: 14px;
+  border-radius: 8px;
+  padding: 9px 18px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-encre);
+  cursor: pointer;
+}
+
+.bouton:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.bouton.discret {
+  background: transparent;
+  color: var(--encre);
+  border-color: var(--bordure);
+}
+
+.bouton.danger {
+  background: transparent;
+  color: var(--erreur);
+  border-color: var(--bordure);
+}
+
+.avis {
+  border-radius: 8px;
+  padding: 11px 14px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.avis.succes {
+  background: var(--succes-fond);
+  color: var(--succes);
+}
+
+.avis.erreur {
+  background: var(--erreur-fond);
+  color: var(--erreur);
+}
+
+.liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.liste li {
+  border-top: 1px solid var(--bordure);
+  padding: 13px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.liste li:first-child {
+  border-top: none;
+}
+
+.liste .titre {
+  font-weight: 600;
+}
+
+.liste .details {
+  color: var(--encre-douce);
+  font-size: 13px;
+}
+
+.vide {
+  color: var(--encre-douce);
+  font-size: 14px;
+  margin: 0;
+}
+
+.pastille {
+  display: inline-block;
+  font-size: 12px;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  padding: 1px 9px;
+  color: var(--encre-douce);
+}
+
+.connexion {
+  max-width: 420px;
+  margin: 12vh auto 0;
+}

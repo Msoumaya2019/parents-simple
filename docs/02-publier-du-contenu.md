@@ -4,6 +4,14 @@ Tout se fait depuis le **tableau de bord Supabase**, section **Table Editor**.
 Il n'y a pas d'interface d'administration à apprendre : chaque table correspond
 à une rubrique de l'application.
 
+> **Une autre façon de publier existe désormais.** Le dépôt contient une page
+> d'administration, dans `admin/`, qui donne des formulaires pour les annonces,
+> les menus de cantine, l'agenda et les documents — avec l'envoi des images et
+> des fichiers. Elle s'installe une fois, et son mode d'emploi est dans
+> [`05-administration.md`](05-administration.md). Ce document-ci reste exact, et
+> reste utile : c'est la voie directe, sans rien à déployer, et la seule qui
+> donne accès aux messages des parents.
+
 > **L'adresse du tableau de bord** — le projet s'appelle `parents-simple-cli` :
 > <https://supabase.com/dashboard/project/toksjxrrgvgovbolcjvr>
 > L'éditeur SQL directement :

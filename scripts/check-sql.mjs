@@ -42,8 +42,15 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 const RACINE = path.resolve(ICI, '..');
 const MIGRATIONS = path.join(RACINE, 'supabase', 'migrations');
 
-/** Tables dont AUCUNE politique pour `anon` n'est acceptable. */
-const TABLES_FERMEES = ['messages', 'sondage_votes'];
+/**
+ * Tables qui ne doivent porter AUCUNE politique, pour aucun rôle : rien n'y
+ * est lisible ni inscriptible par l'API.
+ *
+ * `messages` et `sondage_votes` sont des données de parents ; `membres_bureau`
+ * est la liste de qui a le droit de publier — l'exposer, même à ses propres
+ * membres, reviendrait à publier les adresses du bureau.
+ */
+const TABLES_FERMEES = ['messages', 'sondage_votes', 'membres_bureau'];
 
 /** Tables qui doivent au contraire être lisibles par `anon`. */
 const TABLES_LISIBLES = [
@@ -174,11 +181,15 @@ for (const table of TABLES_FERMEES) {
     continue;
   }
 
-  const politiquesAnon = politiques.filter((politique) => politique.table === table);
+  const politiquesSurLaTable = politiques.filter((politique) => politique.table === table);
 
+  //  Le message NOMME ce qui a été trouvé, et non la propriété attendue. Écrit
+  //  dans l'autre sens — « aucune politique ne s'applique » —, il annoncerait
+  //  le contraire de la situation au moment précis où il s'affiche, et
+  //  enverrait chercher une politique manquante là où il y en a une de trop.
   verifier(
-    politiquesAnon.length === 0,
-    `Aucune politique ne s'applique à « ${table} » : la table reste inaccessible avec la clé publique.`,
+    politiquesSurLaTable.length === 0,
+    `La table « ${table} » ne porte aucune politique, or ${politiquesSurLaTable.length} s'y applique(nt) : ${politiquesSurLaTable.map((politique) => politique.nom).join(', ')}.`,
   );
 
   const selectAccorde = new RegExp(
@@ -187,7 +198,7 @@ for (const table of TABLES_FERMEES) {
 
   verifier(
     !selectAccorde,
-    `Aucun droit de lecture n'est accordé sur « ${table} » au rôle anonyme.`,
+    `La table « ${table} » n'accorde aucune lecture au rôle anonyme, or un « grant select » la vise.`,
   );
 }
 
@@ -351,6 +362,59 @@ if (fs.existsSync(ECRAN_CONTACT)) {
   );
 } else {
   signaler('erreur', `L'écran de contact est introuvable : ${ECRAN_CONTACT}`);
+}
+
+// ---------------------------------------------------------------------------
+//  9. L'écriture n'est ouverte qu'aux personnes nommées
+// ---------------------------------------------------------------------------
+//  Une politique d'écriture accordée à `anon` publierait sur l'application de
+//  l'école depuis n'importe quel navigateur, sans compte. C'est la propriété
+//  que la migration des membres du bureau doit tenir — et le genre d'ajout
+//  qu'on fait un jour « juste pour débloquer » sans mesurer la portée.
+//
+//  Deux formes sont refusées, et la seconde est la plus sournoise :
+//
+//    - `for all|insert|update|delete to anon` : explicite, donc visible ;
+//    - l'absence de clause `to`, qui vaut PUBLIC — et `anon` en fait partie.
+//      Cette politique-là a l'air d'enfermer l'accès alors qu'elle l'ouvre à
+//      tout le monde, et rien à la lecture ne le laisse voir.
+//
+//  Le contrôle lit aussi les politiques du stockage, que la section 2 ne voit
+//  pas : elle ne cherche que `on public.<table>`, et `storage.objects` n'en
+//  est pas une.
+{
+  const ECRITURE = new Set(['all', 'insert', 'update', 'delete']);
+  const motifPolitique =
+    /create\s+policy\s+([a-z0-9_]+)\s+on\s+([a-z0-9_.]+)\s+for\s+(all|select|insert|update|delete)([\s\S]*?);/g;
+
+  let politique;
+  let rencontrees = 0;
+
+  while ((politique = motifPolitique.exec(normalise)) !== null) {
+    rencontrees += 1;
+    const [, nom, table, commande, reste] = politique;
+    const roles = /to\s+([a-z0-9_]+(?:\s*,\s*[a-z0-9_]+)*)/.exec(reste);
+
+    verifier(
+      roles !== null,
+      `La politique « ${nom} » nomme les rôles qu'elle vise, au lieu de les laisser par défaut.`,
+    );
+
+    if (roles !== null && ECRITURE.has(commande)) {
+      verifier(
+        !/\banon\b/.test(roles[1]),
+        `La politique « ${nom} » n'accorde pas « ${commande} » au rôle anonyme sur « ${table} ».`,
+      );
+    }
+  }
+
+  //  Garde-fou du contrôle lui-même : si le motif cessait de correspondre, la
+  //  boucle ci-dessus ne s'exécuterait aucune fois et le contrôle passerait en
+  //  silence. Un contrôle dont la défaillance est muette doit être éprouvé.
+  verifier(
+    rencontrees >= politiques.length && rencontrees > 0,
+    `Toutes les politiques du schéma ont été relues (${rencontrees} trouvée(s)).`,
+  );
 }
 
 // ---------------------------------------------------------------------------

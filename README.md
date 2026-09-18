@@ -61,6 +61,10 @@ GitHub.
 | **iPhone**  | IPA non signé, à signer soi-même               | [`docs/01-installer-sur-iphone.md`](docs/01-installer-sur-iphone.md)   |
 | **Android** | APK installable directement, sans re-signature | [`docs/04-installer-sur-android.md`](docs/04-installer-sur-android.md) |
 
+Le **bureau** publie les annonces, les menus, l'agenda et les documents depuis
+une page web, dans `admin/`. Elle ne demande aucun serveur, et son installation
+est décrite dans [`docs/05-administration.md`](docs/05-administration.md).
+
 ---
 
 ## Démarrage
@@ -198,9 +202,12 @@ Enchaîne, dans cet ordre :
 | `npm run typecheck`       | Un champ renommé d'un seul côté                          |
 | `npm test`                | La logique de dates, où un jour de décalage ne lève rien |
 | `npm run sql:check`       | Une table sans RLS, ou une lecture accordée par mégarde  |
+| `npm run admin:check`     | Une colonne, une borne ou une énumération nommée de      |
+|                           | travers dans la page d'administration                    |
 | `npm run export:android`  | Un module qui ne se résout pas dans le paquet            |
+| `npm run admin:verify`    | Une page d'administration qui ne compile plus            |
 
-> **Sous Windows, `npm run verify` peut échouer à la dernière étape** avec
+> **Sous Windows, `npm run verify` peut échouer à l'avant-dernière étape** avec
 > `SAFE_DELETE_BULK_CONFIRM_REQUIRED`. Ce n'est pas un défaut du projet :
 > `expo export` supprime le dossier `dist/` de l'exécution précédente, et
 > l'environnement local intercepte les suppressions de plus de cinquante
@@ -208,7 +215,7 @@ Enchaîne, dans cet ordre :
 > plutôt que de le supprimer — `mv dist "$TEMP/fl-dist"` — puis de relancer.
 > Les étapes précédentes, elles, ne sont pas concernées.
 
-Trois d'entre eux méritent une explication, car ils ne sont pas ordinaires :
+Quatre d'entre eux méritent une explication, car ils ne sont pas ordinaires :
 
 - **`workflows:check`** analyse les fichiers de `.github/workflows`, vérifie que
   chaque action est épinglée à une version, et passe chaque script `run:` à
@@ -217,12 +224,35 @@ Trois d'entre eux méritent une explication, car ils ne sont pas ordinaires :
   L'APK ne peut pas être compilé sur cette machine — Java 8, pas de SDK — donc
   chaque erreur de flux de travail se paie en allers-retours.
 - **`sql:check`** lit les migrations et vérifie que chaque table active la RLS,
-  que ses privilèges sont révoqués puis accordés explicitement, et que les deux
-  tables sensibles — `messages` et `sondage_votes` — restent fermées au rôle
-  anonyme. Ces fautes ne se voient **nulle part ailleurs** : le schéma
-  s'applique sans erreur et l'application fonctionne parfaitement.
+  que ses privilèges sont révoqués puis accordés explicitement, que les trois
+  tables sensibles — `messages`, `sondage_votes` et `membres_bureau` — restent
+  fermées, et qu'**aucune politique d'écriture ne vise le rôle anonyme**. Il
+  refuse aussi une politique sans clause `to`, qui vaut PUBLIC et ouvrirait donc
+  la table à tout le monde sans que rien ne le laisse voir à la lecture. Ces
+  fautes ne se voient **nulle part ailleurs** : le schéma s'applique sans erreur
+  et l'application fonctionne parfaitement.
+- **`admin:check`** confronte la page d'administration au schéma : chaque table
+  qu'elle appelle, chaque colonne de ses `select`, chaque borne de ses champs,
+  chaque valeur de ses listes déroulantes, chaque compartiment de stockage. Le
+  plus coûteux de ces écarts est celui des colonnes, et il mérite d'être écrit :
+  le client Supabase déduit le type d'une ligne de la **table**, jamais de la
+  chaîne passée à `select`. Une colonne mal orthographiée traverse donc `tsc`,
+  `eslint` et la construction, et n'échoue qu'à l'exécution — devant le bureau,
+  au moment où il croit avoir publié. Ce contrôle **ferme** aussi les ensembles :
+  une contrainte bornée ajoutée à une migration, ou une cinquième table appelée
+  par la page, fait échouer le contrôle tant qu'elle n'a pas été prise en compte
+  délibérément.
 - **`export:android`** est le seul contrôle qui fait passer le paquet par Metro.
   Un module natif mal déclaré échoue ici et nulle part ailleurs.
+
+**`admin:verify`** est placé en dernier parce qu'il installe ses propres
+dépendances, et que c'est donc la seule étape qui dépende du réseau. Un flux
+s'arrête à la première étape en échec : en dernier, il ne cache pas le verdict
+de l'export, qui est local et toujours utile. L'administration a son propre
+`package.json` et son propre empaqueteur — ni `typecheck` ni `export:android` ne
+la regardent, et sans cette étape elle pourrait pourrir sans que rien ne le dise.
+`admin:check`, lui, est placé **avant** `export:android` : il lit des sources et
+non un paquet, donc il ne demande aucune installation et coûte une seconde.
 
 ### Éprouver la sécurité sur la base réelle
 
@@ -237,8 +267,24 @@ faire. La distinction compte : une politique ajoutée à la main depuis le table
 de bord n'apparaît dans aucun fichier, et une migration jamais appliquée décrit
 une base qui n'existe pas.
 
-21 vérifications, dont **aucune ne modifie la base** — les appels aux fonctions
+28 vérifications, dont **aucune ne modifie la base** — les appels aux fonctions
 sont choisis pour échouer avant toute insertion.
+
+Depuis l'ouverture de l'écriture au bureau, il éprouve aussi ce qui compte le
+plus : que cette ouverture **n'ait rien laissé passer du côté de la clé
+publique**. Il tente donc une écriture dans les deux compartiments de stockage
+et vérifie qu'elle est refusée, et il exige que `membres_bureau` réponde
+« interdit » — un `404` signifiant que la table n'existe pas, donc que la
+migration n'est pas appliquée. C'est le seul contrôle qui distingue « fermé » de
+« absent » : sans lui, une base non migrée passerait pour une base protégée.
+
+> **Le refus du stockage ne ressemble pas aux autres.** L'API REST refuse par un
+> `401` ou un `403` ; le service de stockage répond **`400`** et met le refus
+> dans le corps — `{"statusCode":"403","error":"Unauthorized"}`. Exiger `403` en
+> ferait échouer le contrôle à tort, et accepter `400` sans lire le corps le
+> rendrait muet, puisqu'un `400` est aussi ce que produit un type de fichier
+> refusé. La fonction qui tranche est éprouvée par
+> `tests/refus-de-droit.test.mjs`, y compris dans les deux sens.
 
 ### Confronter l'application à la base réelle
 
@@ -282,9 +328,18 @@ laisser vert en train de sonder un compartiment disparu.
 > chemin puisse être éprouvé à la main en attendant.
 
 Les deux contrôles exigent une configuration et ne font donc pas partie de
-`npm run verify`, qui doit tourner sans aucun secret. **Les deux flux de travail
-les exécutent avant de compiler** : on ne produit ni un APK ni un IPA pour une
+`npm run verify`, qui doit tourner sans aucun secret. **Les trois flux de travail
+les exécutent** : `ci.yml` à chaque poussée vers `main`, et les deux flux de mise
+à disposition **avant de compiler**. On ne produit ni un APK ni un IPA pour une
 base ouverte, ni pour une base que l'application ne sait pas interroger.
+
+> **Conséquence à connaître** : `securite:api` échoue tant que la migration
+> `20260918001000_membres_bureau.sql` n'est pas appliquée — la table
+> `membres_bureau` répond alors `404`, et un contrôle qui ne peut rien affirmer
+> doit échouer plutôt que passer. Une compilation lancée avant d'avoir appliqué
+> cette migration s'arrête donc sur cette étape. C'est voulu : la base et le
+> dépôt ne doivent pas diverger. La procédure est dans
+> [`docs/05-administration.md`](docs/05-administration.md).
 
 ---
 
@@ -312,8 +367,18 @@ src/
   types/                    Types du domaine
   utils/                    Dates, formatage
 supabase/migrations/        Le schéma — et la sécurité de l'application
+admin/                      Page d'administration du bureau (statique, sans serveur)
+  src/lib/                  Configuration, client, requêtes, bornes de saisie
+  src/ecrans/               Connexion, annonces, cantine, agenda, documents
+  src/components/           Champs et avis partagés
 scripts/                    Contrôles automatiques
 ```
+
+L'administration est une application distincte, avec son propre
+`package.json` : elle est construite par Vite, pas par Metro. Les deux ne se
+mélangent pas — `tsconfig.json` et `eslint.config.mjs` l'excluent explicitement
+de l'outillage de l'application mobile, et elle a son propre contrôle dans
+l'intégration continue.
 
 ---
 
