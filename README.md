@@ -218,15 +218,19 @@ Enchaîne, dans cet ordre :
 | `npm run admin:check`     | Une colonne, une borne ou une énumération nommée de      |
 |                           | travers dans la page d'administration                    |
 | `npm run export:android`  | Un module qui ne se résout pas dans le paquet            |
-| `npm run admin:verify`    | Une page d'administration qui ne compile plus            |
+| `npm run admin:verify`    | Une page d'administration qui ne compile plus, ou qui ne |
+|                           | se déploie pas hors de la racine d'un domaine            |
 
 > **Sous Windows, `npm run verify` peut échouer à l'avant-dernière étape** avec
 > `SAFE_DELETE_BULK_CONFIRM_REQUIRED`. Ce n'est pas un défaut du projet :
 > `expo export` supprime le dossier `dist/` de l'exécution précédente, et
 > l'environnement local intercepte les suppressions de plus de cinquante
-> fichiers par tour de commande. Le contournement est de déplacer le dossier
-> plutôt que de le supprimer — `mv dist "$TEMP/fl-dist"` — puis de relancer.
-> Les étapes précédentes, elles, ne sont pas concernées.
+> fichiers par tour de commande. Le compte est **cumulé sur l'ensemble des
+> dossiers** supprimés pendant ce tour : `dist/` en contient une quarantaine,
+> `admin/dist/` trois, et le total dépasse le seuil. Le contournement est de
+> déplacer **les deux** plutôt que de les supprimer — `mv dist "$TEMP/fl-dist"`
+> et `mv admin/dist "$TEMP/fl-admin-dist"` — puis de relancer. Les étapes
+> précédentes, elles, ne sont pas concernées.
 
 Quatre d'entre eux méritent une explication, car ils ne sont pas ordinaires :
 
@@ -290,6 +294,14 @@ de l'export, qui est local et toujours utile. L'administration a son propre
 la regardent, et sans cette étape elle pourrait pourrir sans que rien ne le dise.
 `admin:check`, lui, est placé **avant** `export:android` : il lit des sources et
 non un paquet, donc il ne demande aucune installation et coûte une seconde.
+
+Depuis qu'il enchaîne `admin:page`, `admin:verify` regarde aussi l'**artefact** :
+`admin/dist/index.html` ne doit référencer aucune ressource depuis la racine du
+domaine. Le commentaire de `vite.config.ts` promettait des chemins relatifs depuis
+longtemps ; la clé `base`, elle, avait disparu, et la page n'aurait fonctionné
+qu'à la racine d'un domaine. C'est le seul contrôle du projet qui lise un fichier
+**construit** — et il échoue si la page n'a pas été construite, plutôt que de
+parcourir une liste vide.
 
 ### Éprouver la sécurité sur la base réelle
 

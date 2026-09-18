@@ -186,6 +186,24 @@ npm --prefix admin run build
 Puis publier `admin/dist/`. Le dépôt étant public, GitHub Pages suffit et évite
 d'ouvrir un compte de plus.
 
+### Le contrôle qui tient cette promesse
+
+```
+npm run admin:page
+```
+
+Il lit `admin/dist/index.html` — le fichier qui part chez l'hébergeur — et refuse
+toute ressource référencée depuis la racine du domaine, ainsi qu'une page qui
+aurait perdu son script ou sa feuille de style. `npm run admin:verify` l'enchaîne
+après la construction, et échoue si la page n'a pas été construite plutôt que de
+parcourir une liste vide.
+
+Il existe parce que la promesse ci-dessus a été **fausse** pendant un temps : le
+commentaire de `vite.config.ts` décrivait `base: './'`, mais la clé n'existait
+plus. Vite prenait donc sa valeur par défaut, `/`, et la page n'aurait fonctionné
+qu'à la racine d'un domaine — sans que rien ne le signale. Une intention écrite
+n'est pas un réglage, et rien dans le langage ne relie les deux.
+
 ### Essayer en local
 
 ```
