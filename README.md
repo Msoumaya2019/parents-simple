@@ -470,6 +470,22 @@ Deux règles le tiennent maintenant :
 `src/services/agenda.ts`, vérifie qu'il partitionne les instants, et exige
 l'accord entre le marquage et la liste où il s'affiche.
 
+### La semaine de la cantine
+
+L'écran de la cantine ouvre sur une semaine, et sur une seule : un parent y
+répond à « qu'est-ce qu'il mange demain ? », une question qui se pose la veille.
+
+La semaine ouverte est celle du **lendemain**, et non celle d'aujourd'hui. La
+différence ne se voit qu'un jour sur sept — le dimanche, où la semaine qui se
+termine n'a plus un seul jour d'école devant elle. Ce jour-là, l'écran ouvrait
+sur sept cartes dont six déjà atténuées, et la semaine que le parent venait
+préparer se trouvait derrière la flèche « suivante », sans que rien ne le dise.
+
+Prendre la semaine du lendemain rend la promesse vraie par construction : la
+semaine qui contient demain contient demain, quel que soit le jour. Les six
+autres jours, le lendemain est déjà dans la semaine, donc rien ne bouge.
+`semaineDeCantine` porte la règle, tenue par `tests/cantine-semaine.test.ts`.
+
 ---
 
 ## Sécurité

@@ -217,6 +217,10 @@ Renseigner les menus la semaine précédente est le rythme le plus confortable
 pour les familles. Un jour sans ligne affiche « Pas de cantine ce jour-là » —
 il n'y a donc rien à saisir pour les mercredis, samedis et dimanches.
 
+L'application ouvre sur la semaine du **lendemain** : le dimanche soir, un parent
+voit déjà la semaine qui commence le lundi. Le repère à retenir est donc le
+week-end — les menus de la semaine à venir doivent être saisis avant.
+
 ---
 
 ## Agenda — table `agenda_events`

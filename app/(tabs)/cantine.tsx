@@ -15,6 +15,16 @@
  * non plus. Les passer sous silence ferait croire à un défaut d'affichage. Ils
  * apparaissent donc, avec la mention « Pas de cantine ».
  *
+ * LA SEMAINE AFFICHÉE N'EST PAS TOUJOURS CELLE D'AUJOURD'HUI
+ * ----------------------------------------------------------
+ * Six jours sur sept, l'écran ouvre sur la semaine qui contient la date du
+ * jour. Le dimanche, non : la semaine qui se termine n'a plus un seul jour
+ * d'école devant elle, et « demain » — le lundi qui suit — appartient à la
+ * semaine suivante. Ouvrir sur la semaine révolue affichait sept cartes dont
+ * six atténuées, et laissait le parent chercher à la main la semaine qu'il
+ * venait préparer. La règle est dans `semaineDeCantine`, avec les autres
+ * fonctions de date : elle est ainsi éprouvable sans charger cet écran.
+ *
  * La navigation est bornée à quelques semaines en arrière et en avant : au-delà,
  * les menus ne sont pas encore publiés — ou plus conservés — et laisser défiler
  * indéfiniment ne mènerait qu'à des écrans vides.
@@ -34,7 +44,7 @@ import {
   decalerJours,
   jourCivilCourt,
   jourCourant,
-  lundiDeLaSemaine,
+  semaineDeCantine,
   versJourCivil,
 } from '@/utils/date';
 
@@ -59,8 +69,9 @@ export default function CantineScreen(): React.JSX.Element {
   // Le lundi de la semaine affichée. Recalculé à chaque changement de semaine,
   // et non mémorisé : la date du jour peut changer si l'application reste
   // ouverte toute la nuit, ce qui arrive sur un téléphone qu'on ne ferme pas.
+  // La semaine de départ n'est pas toujours celle d'aujourd'hui : voir l'en-tête.
   const lundi = useMemo(() => {
-    const base = lundiDeLaSemaine(new Date());
+    const base = semaineDeCantine();
     return decalerJours(base, decalage * 7);
   }, [decalage]);
 
@@ -95,6 +106,11 @@ export default function CantineScreen(): React.JSX.Element {
     });
   }, []);
 
+  // Le libellé suit le décalage, pas la semaine ouverte : le dimanche,
+  // « Cette semaine » désigne donc la semaine qui commence le lendemain. C'est
+  // celle que le parent prépare, et c'est la même phrase que les six autres
+  // jours — un libellé spécial pour le dimanche ne ferait que déplacer la
+  // question.
   const titreSemaine =
     decalage === 0
       ? 'Cette semaine'

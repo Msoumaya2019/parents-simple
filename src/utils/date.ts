@@ -368,3 +368,32 @@ export function lundiDeLaSemaine(valeur: Date): Date {
   lundi.setDate(lundi.getDate() - recul);
   return lundi;
 }
+
+/**
+ * Le lundi de la semaine que l'écran de la cantine doit ouvrir.
+ *
+ * C'est la semaine du LENDEMAIN, et non celle d'aujourd'hui. La différence ne se
+ * voit qu'un jour sur sept — mais c'est le jour qui compte. Le dimanche, la
+ * semaine qui se termine n'a plus un seul jour d'école devant elle : elle
+ * s'affiche donc entièrement atténuée, et « demain », le lundi qui suit,
+ * appartient à la semaine suivante. Le parent qui prépare les affaires du
+ * lendemain ouvrait l'application sur une semaine révolue, et devait deviner
+ * qu'il fallait appuyer sur la flèche.
+ *
+ * Prendre la semaine du lendemain rend la promesse vraie PAR CONSTRUCTION : la
+ * semaine qui contient demain contient demain, quel que soit le jour. Les six
+ * autres jours, le lendemain est déjà dans la semaine, donc rien ne bouge — et
+ * c'est pourquoi le décalage ne se voit pas.
+ *
+ * Écrire la condition « si dimanche » serait une branche morte : le seul jour
+ * dont le lendemain change de semaine est le dimanche, si bien que les deux
+ * écritures sont équivalentes. Celle-ci dit la règle au lieu de nommer son cas
+ * particulier.
+ *
+ * Cette règle vit ici, et non dans l'écran, pour la même raison que les autres
+ * fonctions de ce fichier : `app/(tabs)/cantine.tsx` importe React Native, donc
+ * aucun banc d'essai ne peut le charger.
+ */
+export function semaineDeCantine(valeur: Date = new Date()): Date {
+  return lundiDeLaSemaine(decalerJours(valeur, 1));
+}
