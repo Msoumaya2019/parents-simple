@@ -63,14 +63,46 @@ function verifierSyntaxe(script) {
   }
 }
 
-const fichiers = readdirSync(DOSSIER).filter(
-  (nom) => nom.endsWith('.yml') || nom.endsWith('.yaml'),
+//  LES FLUX ATTENDUS, NOMMÉS — ET LA RAISON
+//  ----------------------------------------
+//  La garde précédente n'exigeait qu'« au moins un » flux : elle échouait si le
+//  dossier était vidé, et laissait passer la disparition d'UN SEUL fichier.
+//
+//  Mesuré, avant correction : `ci.yml` écarté du dossier, le contrôle annonçait
+//  « 67 vérifications sur 2 flux de travail — Tous les flux de travail sont
+//  valides », code de sortie 0. Un tiers de son sujet avait disparu, dont le
+//  flux qui lance tous les autres.
+//
+//  C'est la forme générale du défaut : un contrôle qui découvre ses sujets par
+//  `readdir` mesure ce qui RESTE, jamais ce qui MANQUE. Le nombre de
+//  vérifications baisse, et rien ne le compare à un attendu. Un contrôle de
+//  couverture doit dire où il s'arrête.
+//
+//  La liste est donc fermée, comme celle de `admin:check` : un fichier absent
+//  échoue, et un fichier AJOUTÉ échoue aussi tant qu'il n'est pas déclaré ici.
+//  Déclarer est le prix, et il est utile : il force à se demander si le nouveau
+//  flux doit tourner dans les trois chaînes ou seulement dans une.
+const FLUX_ATTENDUS = ['android-apk.yml', 'ci.yml', 'ios-unsigned.yml'];
+
+//  `readdirSync` ne garantit aucun ordre : trier rend les messages stables d'une
+//  machine à l'autre, ce dont un test a besoin pour comparer une sortie.
+const fichiers = readdirSync(DOSSIER)
+  .filter((nom) => nom.endsWith('.yml') || nom.endsWith('.yaml'))
+  .sort();
+
+const manquants = FLUX_ATTENDUS.filter((nom) => !fichiers.includes(nom));
+const nonDeclares = fichiers.filter((nom) => !FLUX_ATTENDUS.includes(nom));
+
+verifier(
+  `les ${FLUX_ATTENDUS.length} flux de travail attendus sont présents`,
+  manquants.length === 0,
+  `${DOSSIER} : flux attendu(s) absent(s) — ${manquants.join(', ')}. Un flux qui disparaît ne se signale pas autrement : le contrôle mesure ce qui reste.`,
 );
 
 verifier(
-  `au moins un flux de travail dans ${DOSSIER}`,
-  fichiers.length > 0,
-  `${DOSSIER} est vide.`,
+  'aucun flux de travail non déclaré',
+  nonDeclares.length === 0,
+  `${DOSSIER} : flux non déclaré(s) — ${nonDeclares.join(', ')}. Les ajouter à FLUX_ATTENDUS dans scripts/check-workflows.mjs.`,
 );
 
 for (const nom of fichiers) {

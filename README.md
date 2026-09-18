@@ -223,6 +223,16 @@ Quatre d'entre eux méritent une explication, car ils ne sont pas ordinaires :
   évite de découvrir une faute de frappe après l'installation du SDK Android.
   L'APK ne peut pas être compilé sur cette machine — Java 8, pas de SDK — donc
   chaque erreur de flux de travail se paie en allers-retours.
+
+  Il tient aussi la **liste des flux attendus**, fermée comme celle de
+  `admin:check` : un fichier absent le fait échouer, et un fichier ajouté aussi
+  tant qu'il n'est pas déclaré. C'est nécessaire parce qu'il découvre ses sujets
+  par `readdir` — il mesure donc ce qui **reste**, jamais ce qui **manque**.
+  Mesuré : `ci.yml` écarté du dossier, il annonçait « 67 vérifications sur
+  2 flux de travail » et « Tous les flux de travail sont valides », code de
+  sortie 0, alors qu'un tiers de son sujet avait disparu — dont le flux qui
+  lance tous les autres.
+
 - **`sql:check`** lit les migrations et vérifie que chaque table active la RLS,
   que ses privilèges sont révoqués puis accordés explicitement, que les trois
   tables sensibles — `messages`, `sondage_votes` et `membres_bureau` — restent

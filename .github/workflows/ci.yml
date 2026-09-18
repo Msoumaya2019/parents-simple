@@ -10,8 +10,13 @@
 #  défaut que les autres laissent passer :
 #
 #    workflows:check  un flux de travail invalide : YAML mal formé, action non
-#                  épinglée, ou script `run:` dont la syntaxe est fausse. Placé
-#                  en premier parce qu'il coûte deux secondes et qu'il évite de
+#                  épinglée, script `run:` dont la syntaxe est fausse — ou un
+#                  flux attendu qui a DISPARU. Il découvre ses sujets par
+#                  `readdir`, donc il mesure ce qui RESTE et jamais ce qui
+#                  MANQUE : sa liste est fermée pour cette raison. Mesuré :
+#                  `ci.yml` écarté, il annonçait 67 vérifications sur 2 flux et
+#                  « Tous les flux de travail sont valides », code 0. Placé en
+#                  premier parce qu'il coûte deux secondes et qu'il évite de
 #                  découvrir le défaut après vingt minutes de compilation.
 #    format:check  deux personnes formatant différemment produisent un diff
 #                  illisible, où la modification réelle se perd.
@@ -24,9 +29,13 @@
 #                  divergent, un écran déclaré dans la pile et absent du
 #                  répertoire. Ni tsc ni ESLint ne regardent ces accords-là, et
 #                  l'œil les manque aussi.
-#    sql:check     une table sans RLS, ou un droit de lecture accordé par
-#                  mégarde. Ces fautes ne se voient NULLE PART ailleurs : le
-#                  schéma s'applique sans erreur et l'application fonctionne.
+#    sql:check     une table sans RLS, ou une écriture ouverte à tous : une
+#                  politique pour `anon`, une politique sans clause `to` — qui
+#                  vaut PUBLIC —, ou une politique visant `authenticated` sans
+#                  la condition d'appartenance au bureau, dans `using` ET dans
+#                  `with check`. Ces fautes ne se voient NULLE PART ailleurs :
+#                  le schéma s'applique sans erreur, et l'application
+#                  fonctionne parfaitement.
 #    admin:check   une colonne, une borne ou une valeur d'énumération nommée de
 #                  travers dans la page d'administration. Ni `tsc` ni `export`
 #                  ne les regardent : le client Supabase déduit le type d'une
