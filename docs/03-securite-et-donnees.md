@@ -257,6 +257,23 @@ tirés au hasard à la première ouverture.
 Nom, adresse, téléphone, position, contacts, photos, fichiers. Aucun outil de
 mesure d'audience, aucune publicité, aucun tiers.
 
+### Le seul champ facultatif qui identifie
+
+Le formulaire de contact propose une adresse de réponse. Elle est facultative, et
+l'écran le dit : sans elle, le bureau ne peut pas répondre. Lorsqu'elle est
+renseignée, c'est la seule donnée qui rattache un message à une personne — elle
+part avec le message, et ne sert qu'à répondre.
+
+La base impose alors une forme plausible, et le formulaire applique **la même
+règle**, recopiée du schéma dans `src/lib/adresse-reponse.ts` et tenue par
+`tests/adresse-reponse.test.ts`. Le banc relit le motif dans la migration et
+compare les verdicts **dans les deux sens** : une recopie plus large rendrait le
+message inenvoyable, une recopie plus étroite refuserait des adresses valides —
+deux défauts de sens opposés, et le second est le moins visible.
+
+Le champ vide n'est pas une tolérance mais le cas normal : la contrainte autorise
+`null`, et c'est ce que l'application envoie.
+
 ### Durées de conservation
 
 - **Messages** : le temps du traitement. À supprimer depuis le tableau de bord

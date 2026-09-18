@@ -114,8 +114,16 @@ export function traduireErreur(brut: string): AppError {
     );
   }
 
-  return new AppError(
-    'Une erreur est survenue pendant le chargement. Réessayez dans un instant.',
-    brut,
-  );
+  // Dernier recours : la cause n'a pas été reconnue. Deux exigences, et elles
+  // se contredisent presque.
+  //
+  // Il ne doit nommer AUCUNE phase. Le même repli sert à la lecture et à
+  // l'envoi ; « pendant le chargement » était donc faux pour un message qui
+  // n'est jamais parti, et il envoyait le parent chercher une panne de réseau
+  // qui n'existait pas.
+  //
+  // Il ne doit pas non plus inventer une cause — c'est la règle de ce fichier.
+  // Il dit donc seulement qu'il ne sait pas, et propose la seule action qui
+  // reste. Un message générique est décevant ; un message faux est pire.
+  return new AppError('Une erreur est survenue. Réessayez dans un instant.', brut);
 }

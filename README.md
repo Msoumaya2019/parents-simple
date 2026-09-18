@@ -412,7 +412,7 @@ src/
   config/                   Lecture de l'environnement, client Supabase
   errors/                   Traduction des erreurs en français
   hooks/                    Chargement asynchrone dérivé, rafraîchissement par glissement
-  lib/                      Identifiants, votes locaux, règles de chargement et du responsable
+  lib/                      Identifiants, votes locaux, règles de chargement, du responsable et d'adresse
   providers/                Thème clair/sombre
   services/                 Une fonction par requête
   theme/                    Palettes et échelles
@@ -470,3 +470,10 @@ telles dans l'écran Confidentialité de l'application.
 > de contact. Ces informations figurent dans les statuts. La page bascule
 > d'elle-même de l'avertissement vers les coordonnées dès que les trois valeurs
 > sont renseignées.
+
+Le champ « adresse e-mail pour la réponse » du formulaire de contact est
+facultatif. Mais lorsqu'il est renseigné, la base impose une forme plausible, et
+le formulaire applique **la même règle** — recopiée du schéma, et tenue par
+`tests/adresse-reponse.test.ts`. La recopier plus strictement serait un défaut
+symétrique, et moins visible : un parent verrait « adresse invalide » sur une
+adresse valide.

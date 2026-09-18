@@ -13,18 +13,30 @@
  * pas répondre. Beaucoup de parents écrivent en s'attendant à une réponse, et
  * découvrent le contraire trop tard.
  *
- * LA VALIDATION RESTE PERMISSIVE
- * ------------------------------
- * Seuls le sujet et le message sont exigés. Une validation stricte de l'adresse
- * refuse des adresses valides — les cas particuliers sont nombreux — et un
- * refus incompréhensible décourage plus qu'une adresse erronée, qui se voit
- * immédiatement à l'absence de réponse.
+ * LA VALIDATION DE L'ADRESSE EST CELLE DU SCHÉMA
+ * ----------------------------------------------
+ * Seuls le sujet et le message sont exigés ; l'adresse est facultative. Mais
+ * lorsqu'elle est renseignée, la base impose une forme plausible — un arobase,
+ * un point, pas d'espace — et refuse le reste. Le formulaire applique donc
+ * exactement la même règle, et le dit avant l'envoi : sans cela, un parent qui
+ * écrivait son numéro de téléphone à cette place remplissait tout, appuyait sur
+ * « Envoyer », et recevait une erreur générique qui ne parlait ni d'adresse ni
+ * de format — et qui l'invitait à réessayer, ce qui échouait à l'identique.
+ *
+ * Une validation PLUS stricte serait un autre défaut : refuser une adresse
+ * valide décourage plus qu'une adresse erronée, qui se voit à l'absence de
+ * réponse. Le motif est donc recopié du schéma, et non inventé ici.
  */
 
 import { useCallback, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText, Button, Card, Pill, Screen, TextField } from '@/components/ui';
+import {
+  adresseReponseAcceptable,
+  MESSAGE_ADRESSE_INVALIDE,
+  normaliserAdresseReponse,
+} from '@/lib/adresse-reponse';
 import { useTheme } from '@/providers/theme-provider';
 import { CATEGORIES_MESSAGE, envoyerMessage, libelleCategorieMessage } from '@/services/messages';
 import type { MessageCategorie } from '@/types/models';
@@ -47,6 +59,7 @@ export default function ContactScreen(): React.JSX.Element {
   const [erreur, setErreur] = useState<string | null>(null);
   const [erreurSujet, setErreurSujet] = useState<string | null>(null);
   const [erreurCorps, setErreurCorps] = useState<string | null>(null);
+  const [erreurAdresse, setErreurAdresse] = useState<string | null>(null);
 
   const reinitialiser = useCallback(() => {
     setSujet('');
@@ -57,12 +70,17 @@ export default function ContactScreen(): React.JSX.Element {
     setErreur(null);
     setErreurSujet(null);
     setErreurCorps(null);
+    setErreurAdresse(null);
   }, []);
 
   const envoyer = useCallback(async () => {
     const sujetPropre = sujet.trim();
     const corpsPropre = corps.trim();
-    const adressePropre = adresse.trim();
+
+    // Ce qui partira réellement. La règle de validation porte sur cette valeur,
+    // jamais sur la saisie : c'est ce qui garantit que l'écran ne peut pas
+    // accepter une adresse que la base refusera.
+    const adresseEnvoyee = normaliserAdresseReponse(adresse);
 
     let valide = true;
 
@@ -80,6 +98,18 @@ export default function ContactScreen(): React.JSX.Element {
       setErreurCorps(null);
     }
 
+    // La base refuse une adresse qui n'a pas la forme `x@y.z` — et son refus
+    // arrive ici sous la forme d'un message générique qui parle de chargement.
+    // On applique donc la même règle AVANT d'envoyer, pour que le parent lise
+    // ce qui ne va pas à l'endroit où cela ne va pas. Le champ vide reste
+    // accepté : `adresseReponseAcceptable` en fait explicitement le cas.
+    if (!adresseReponseAcceptable(adresse)) {
+      setErreurAdresse(MESSAGE_ADRESSE_INVALIDE);
+      valide = false;
+    } else {
+      setErreurAdresse(null);
+    }
+
     if (!valide) {
       return;
     }
@@ -92,7 +122,7 @@ export default function ContactScreen(): React.JSX.Element {
         sujet: sujetPropre,
         corps: corpsPropre,
         categorie,
-        reponseA: adressePropre === '' ? null : adressePropre,
+        reponseA: adresseEnvoyee,
       });
       setEnvoye(true);
       setSujet('');
@@ -219,6 +249,7 @@ export default function ContactScreen(): React.JSX.Element {
               autoCapitalize="none"
               maxLength={LONGUEUR_ADRESSE}
               aide="Sans adresse, le bureau ne pourra pas vous répondre personnellement."
+              erreur={erreurAdresse}
             />
 
             {erreur !== null ? (
