@@ -3,6 +3,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { Avis, Bouton, Case, Carte, Champ, Choix, ZoneTexte } from '../components/ui';
 import { BORNES } from '../lib/bornes';
 import { useChargement } from '../lib/chargement';
+import { messageListeAbsente } from '../lib/message-liste';
 import type { Client } from '../lib/client';
 import {
   creerAnnonce,
@@ -265,7 +266,7 @@ export function Annonces({ client }: { readonly client: Client }) {
       </Carte>
 
       <Carte titre="Annonces publiées" aide="Les plus récentes en premier.">
-        {annonces === null && <p className="vide">Chargement…</p>}
+        {annonces === null && <p className="vide">{messageListeAbsente(etat)}</p>}
         {annonces !== null && annonces.length === 0 && (
           <p className="vide">Aucune annonce pour le moment.</p>
         )}

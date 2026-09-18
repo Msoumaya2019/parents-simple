@@ -94,3 +94,9 @@ export function useChargement<T>(cle: string, charger: () => Promise<T>): Charge
 
   return { etat, recharger };
 }
+
+// Ce que la carte de liste affiche quand elle n'a rien à montrer — et notamment
+// le texte d'un échec, qui n'est pas « Chargement… » — vit dans
+// `./message-liste.ts`. C'est un module sans import à l'exécution, donc
+// interrogeable par un banc ; ce fichier-ci ne l'est pas, pour la raison
+// mesurée et citée là-bas.

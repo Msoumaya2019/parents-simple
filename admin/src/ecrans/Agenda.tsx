@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Avis, Bouton, Case, Carte, Champ, ZoneTexte } from '../components/ui';
 import { BORNES, ordreDesDatesValide } from '../lib/bornes';
 import { useChargement } from '../lib/chargement';
+import { messageListeAbsente } from '../lib/message-liste';
 import type { Client } from '../lib/client';
 import {
   creerEvenement,
@@ -205,7 +206,7 @@ export function Agenda({ client }: { readonly client: Client }) {
       </Carte>
 
       <Carte titre="Événements à venir et passés" aide="Du plus proche au plus lointain.">
-        {evenements === null && <p className="vide">Chargement…</p>}
+        {evenements === null && <p className="vide">{messageListeAbsente(etat)}</p>}
         {evenements !== null && evenements.length === 0 && (
           <p className="vide">Aucun événement pour le moment.</p>
         )}

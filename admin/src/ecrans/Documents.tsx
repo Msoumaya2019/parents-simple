@@ -3,6 +3,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { Avis, Bouton, Carte, Champ, Choix, ZoneTexte } from '../components/ui';
 import { BORNES } from '../lib/bornes';
 import { useChargement } from '../lib/chargement';
+import { messageListeAbsente } from '../lib/message-liste';
 import type { Client } from '../lib/client';
 import {
   anneeScolaire,
@@ -180,7 +181,7 @@ export function Documents({ client }: { readonly client: Client }) {
       </Carte>
 
       <Carte titre="Documents publiés" aide="Les plus récents en premier.">
-        {documents === null && <p className="vide">Chargement…</p>}
+        {documents === null && <p className="vide">{messageListeAbsente(etat)}</p>}
         {documents !== null && documents.length === 0 && (
           <p className="vide">Aucun document publié pour le moment.</p>
         )}

@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Avis, Bouton, Carte, Champ, ZoneTexte } from '../components/ui';
 import { menuRenseigne } from '../lib/bornes';
 import { useChargement } from '../lib/chargement';
+import { messageListeAbsente } from '../lib/message-liste';
 import type { Client } from '../lib/client';
 import { enregistrerMenu, listerMenus, supprimerMenu } from '../lib/contenu';
 import { formaterJour, jourValide } from '../lib/dates';
@@ -158,7 +159,7 @@ export function Cantine({ client }: { readonly client: Client }) {
       </Carte>
 
       <Carte titre="Menus enregistrés" aide="Les jours les plus récents en premier.">
-        {menus === null && <p className="vide">Chargement…</p>}
+        {menus === null && <p className="vide">{messageListeAbsente(etat)}</p>}
         {menus !== null && menus.length === 0 && (
           <p className="vide">Aucun menu enregistré pour le moment.</p>
         )}
