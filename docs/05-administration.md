@@ -182,6 +182,19 @@ npm run admin:dev
 
 Ce fichier est ignoré par git.
 
+> **Pourquoi `admin:install` passe par un `cd`.** Le script fait
+> `cd admin && npm install`, et non `npm --prefix admin install`. Les deux formes
+> n'ont pas le même effet, et l'écart a été mesuré : la seconde **réécrit**
+> `admin/package.json`. Elle y remettait une dépendance morte — `file:..`, vers la
+> racine du dépôt, qu'aucun `import` n'appelle — à chaque exécution. Le
+> `git status` l'aurait montrée modifiée après chaque `npm run verify`, sans que
+> personne ne l'ait ajoutée. `admin:check` refuse désormais cette dépendance, mais
+> la cause est traitée : c'est la forme du script qui la faisait revenir.
+>
+> Le flux d'intégration continue, lui, emploie `npm --prefix admin ci` sans
+> inconvénient : **`npm ci` ne réécrit jamais un manifeste**, ni `package.json`, ni
+> un verrou. C'est la différence entre `install` et `ci`, et elle compte ici.
+
 ---
 
 ## 5. Le risque à connaître : la mise en pause

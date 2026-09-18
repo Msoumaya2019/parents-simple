@@ -644,6 +644,59 @@ for (const { type, liste, constante } of ENUMERATIONS) {
 }
 
 // ---------------------------------------------------------------------------
+//  8. L'administration est autonome
+// ---------------------------------------------------------------------------
+//  `admin/` est une application à part, et c'est ce qui lui permet d'être
+//  déployée seule : la racine du dépôt n'est qu'un voisin. Une dépendance
+//  `file:..` la rattacherait au contraire à ce voisin, dont l'absence sur
+//  l'hébergeur ferait échouer l'installation.
+//
+//  Ce contrôle existe parce que le défaut se RECRÉE tout seul, et il a fallu le
+//  mesurer pour le croire. `npm --prefix admin install` réécrit
+//  `admin/package.json` et y remet la dépendance ; `cd admin && npm install` la
+//  laisse partie. Les deux formes ont été comparées sur un état identique — le
+//  manifeste, le verrou et le verrou caché nettoyés, le lien de `node_modules`
+//  déplacé — et seule la première la fait revenir. Or c'est celle que le script
+//  `admin:install` employait : une dépendance morte, qu'aucun `import` n'appelle,
+//  ressuscitée à chaque `npm run verify`, et donc présente dans chaque
+//  `git status` sans que personne ne l'ait ajoutée.
+//
+//  La propriété visée est celle du MANIFESTE, pas celle d'un fichier de verrou :
+//  c'est lui qui fait foi, et les verrous s'en déduisent.
+
+const MANIFESTE_ADMIN = path.join(RACINE, 'admin', 'package.json');
+const manifesteAdmin = JSON.parse(fs.readFileSync(MANIFESTE_ADMIN, 'utf8'));
+
+const dependancesAdmin = {
+  ...manifesteAdmin.dependencies,
+  ...manifesteAdmin.devDependencies,
+};
+
+// Garde-fou d'extraction : un manifeste lu de travers — chemin déplacé, clé
+// renommée — rendrait le contrôle vert en n'ayant rien lu. Les deux blocs sont
+// donc exigés nommément, et pas seulement un total : renommer `dependencies`
+// laisserait cinq entrées dans `devDependencies` et suffirait à faire passer un
+// compte.
+const blocsPresents =
+  manifesteAdmin.dependencies !== undefined && manifesteAdmin.devDependencies !== undefined;
+
+verifier(
+  blocsPresents && Object.keys(dependancesAdmin).length >= 5,
+  `Le manifeste de l'administration a été lu, et porte ses deux blocs de dépendances (${Object.keys(dependancesAdmin).length} relevée(s)).`,
+);
+
+const sortantes = Object.entries(dependancesAdmin).filter(
+  ([, specification]) => typeof specification === 'string' && specification.startsWith('file:'),
+);
+
+verifier(
+  sortantes.length === 0,
+  `Aucune dépendance de l'administration ne passe par un chemin hors de son dossier : ${
+    sortantes.length === 0 ? 'aucune' : sortantes.map(([nom]) => nom).join(', ')
+  }.`,
+);
+
+// ---------------------------------------------------------------------------
 //  Rapport
 // ---------------------------------------------------------------------------
 
