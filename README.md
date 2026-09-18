@@ -411,8 +411,8 @@ src/
   components/BarreOnglets   La barre d'onglets, écrite à la main
   config/                   Lecture de l'environnement, client Supabase
   errors/                   Traduction des erreurs en français
-  hooks/                    Chargement asynchrone dérivé
-  lib/                      Identifiants d'installation, mémoire des votes, complétude du responsable
+  hooks/                    Chargement asynchrone dérivé, rafraîchissement par glissement
+  lib/                      Identifiants, votes locaux, règles de chargement et du responsable
   providers/                Thème clair/sombre
   services/                 Une fonction par requête
   theme/                    Palettes et échelles

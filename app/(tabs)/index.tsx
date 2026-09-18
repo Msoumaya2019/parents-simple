@@ -44,7 +44,9 @@ export default function AccueilScreen(): React.JSX.Element {
   const { theme } = useTheme();
   const router = useRouter();
 
-  const { etat, recharger } = useAsyncData<readonly Annonce[]>('annonces', () => listerAnnonces());
+  const { etat, enCours, recharger } = useAsyncData<readonly Annonce[]>('annonces', () =>
+    listerAnnonces(),
+  );
 
   // Les sondages sont chargés séparément, et leur échec n'empêche pas le fil de
   // s'afficher : une invitation à voter qui ne charge pas ne doit pas priver le
@@ -58,7 +60,7 @@ export default function AccueilScreen(): React.JSX.Element {
   }, [recharger, rechargerSondages]);
 
   const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
-    etat.statut === 'chargement' || sondages.etat.statut === 'chargement',
+    enCours || sondages.enCours,
     rechargerTout,
   );
 

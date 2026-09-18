@@ -67,14 +67,11 @@ export default function CantineScreen(): React.JSX.Element {
   const dimanche = useMemo(() => decalerJours(lundi, 6), [lundi]);
   const cle = versJourCivil(lundi);
 
-  const { etat, recharger } = useAsyncData<readonly MenuCantine[]>(`menus-${cle}`, () =>
+  const { etat, enCours, recharger } = useAsyncData<readonly MenuCantine[]>(`menus-${cle}`, () =>
     listerMenus(cle, 7),
   );
 
-  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
-    etat.statut === 'chargement',
-    recharger,
-  );
+  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(enCours, recharger);
 
   const aujourdhui = jourCourant();
 

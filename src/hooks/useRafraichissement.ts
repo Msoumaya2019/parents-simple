@@ -27,13 +27,21 @@ export interface Rafraichissement {
 }
 
 /**
- * @param enChargement Vrai tant que les données de l'écran ne sont pas arrivées.
- * @param recharger    Relance le chargement. Peut être recréée à chaque rendu.
+ * @param enCours   Vrai tant que la demande courante n'a pas rendu son résultat.
+ *                  Ce n'est PAS « l'écran affiche-t-il un chargement ? » : un
+ *                  rechargement laisse l'ancien résultat à l'écran, donc
+ *                  `etat.statut === 'chargement'` vaut faux dès qu'un premier
+ *                  chargement a abouti — la roue ne tournait alors jamais.
+ *                  C'est `enCours`, rendu par `useAsyncData`, qu'il faut passer.
+ * @param recharger Relance le chargement. Peut être recréée à chaque rendu.
  */
-export function useRafraichissement(
-  enChargement: boolean,
-  recharger: () => void,
-): Rafraichissement {
+export function useRafraichissement(enCours: boolean, recharger: () => void): Rafraichissement {
+  // `attente` reste vrai après le premier geste, et c'est voulu : il ne sert
+  // qu'à distinguer « l'écran charge tout seul » de « l'utilisateur a demandé un
+  // rafraîchissement ». C'est `enCours` qui termine l'indicateur, et lui seul :
+  // le remettre à faux demanderait d'écrire un état dans un effet, ce que la
+  // règle `react-hooks/set-state-in-effect` refuse — et c'est cette règle qui a
+  // fait choisir une condition dérivée.
   const [attente, setAttente] = useState(false);
 
   const tirerPourRafraichir = useCallback(() => {
@@ -41,7 +49,7 @@ export function useRafraichissement(
     recharger();
   }, [recharger]);
 
-  const enRafraichissement = attente && enChargement;
+  const enRafraichissement = attente && enCours;
 
   return { enRafraichissement, tirerPourRafraichir };
 }

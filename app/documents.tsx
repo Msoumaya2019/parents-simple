@@ -41,14 +41,11 @@ export default function DocumentsScreen(): React.JSX.Element {
   const { theme } = useTheme();
   const [erreurOuverture, setErreurOuverture] = useState<string | null>(null);
 
-  const { etat, recharger } = useAsyncData<readonly DocumentUtile[]>('documents', () =>
+  const { etat, enCours, recharger } = useAsyncData<readonly DocumentUtile[]>('documents', () =>
     listerDocuments(),
   );
 
-  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
-    etat.statut === 'chargement',
-    recharger,
-  );
+  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(enCours, recharger);
 
   const ouvrir = useCallback(async (document: DocumentUtile) => {
     setErreurOuverture(null);

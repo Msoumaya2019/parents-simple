@@ -54,7 +54,7 @@ export default function PlusScreen(): React.JSX.Element {
   // montre des sondages et des documents, et l'indicateur s'arrêterait sur le
   // premier revenu, en laissant l'autre se remplir après coup.
   const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
-    sondages.etat.statut === 'chargement' || documents.etat.statut === 'chargement',
+    sondages.enCours || documents.enCours,
     rechargerTout,
   );
 

@@ -34,17 +34,17 @@ export default function AgendaScreen(): React.JSX.Element {
   const { theme } = useTheme();
   const [vue, setVue] = useState<Vue>('avenir');
 
-  const { etat, recharger } = useAsyncData<readonly EvenementAgenda[]>(`agenda-${vue}`, () => {
-    const maintenant = new Date().toISOString();
-    return vue === 'avenir'
-      ? listerProchainsEvenements(maintenant)
-      : listerEvenementsPasses(maintenant);
-  });
-
-  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(
-    etat.statut === 'chargement',
-    recharger,
+  const { etat, enCours, recharger } = useAsyncData<readonly EvenementAgenda[]>(
+    `agenda-${vue}`,
+    () => {
+      const maintenant = new Date().toISOString();
+      return vue === 'avenir'
+        ? listerProchainsEvenements(maintenant)
+        : listerEvenementsPasses(maintenant);
+    },
   );
+
+  const { enRafraichissement, tirerPourRafraichir } = useRafraichissement(enCours, recharger);
 
   const entete = (
     <View style={{ paddingTop: theme.spacing.lg }}>

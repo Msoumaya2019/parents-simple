@@ -21,28 +21,38 @@
  * Le compteur de génération sert à ignorer une réponse devenue obsolète : sans
  * lui, une requête lente lancée avant un changement de filtre peut se terminer
  * après la suivante et écraser un résultat plus récent.
+ *
+ * DEUX QUESTIONS, ET NON UNE
+ * --------------------------
+ * Ce hook répond à deux questions distinctes, et les confondre a coûté cher :
+ *
+ *   - `etat` — ce que l'écran affiche. Un rechargement garde l'ancien résultat
+ *     à l'écran, pour que la liste ne disparaisse pas pendant qu'on la
+ *     rafraîchit ;
+ *   - `enCours` — la demande courante est-elle terminée ? Un rechargement
+ *     répond NON, même si l'écran affiche déjà quelque chose.
+ *
+ * Les deux règles vivent dans `@/lib/chargement`, qui n'importe rien : un banc
+ * ne peut pas charger ce fichier-ci, qui importe React. Les écrans passent
+ * `enCours` au geste de rafraîchissement, jamais `etat.statut`.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { detailTechnique, messagePourUtilisateur } from '@/errors';
+import { chargementEnCours, etatDerive } from '@/lib/chargement';
+import type { EtatAsync, ResultatMemorise } from '@/lib/chargement';
 
-export type EtatAsync<T> =
-  | { readonly statut: 'chargement' }
-  | { readonly statut: 'succes'; readonly donnees: T }
-  | {
-      readonly statut: 'erreur';
-      readonly message: string;
-      readonly technique: string | null;
-    };
-
-interface ResultatMemorise<T> {
-  readonly cle: string;
-  readonly etat: EtatAsync<T>;
-}
+export type { EtatAsync } from '@/lib/chargement';
 
 export interface ChargementAsync<T> {
+  /** Ce que l'écran affiche : le dernier résultat, ou un chargement. */
   readonly etat: EtatAsync<T>;
+  /**
+   * Vrai tant que la demande courante n'a pas rendu son résultat — y compris
+   * pendant un rechargement, alors que `etat` porte encore l'ancien résultat.
+   */
+  readonly enCours: boolean;
   readonly recharger: () => void;
 }
 
@@ -76,12 +86,13 @@ export function useAsyncData<T>(cle: string, charger: () => Promise<T>): Chargem
       try {
         const donnees = await chargerRef.current();
         if (generation.current === courante) {
-          setResultat({ cle, etat: { statut: 'succes', donnees } });
+          setResultat({ cle, tentative, etat: { statut: 'succes', donnees } });
         }
       } catch (erreur) {
         if (generation.current === courante) {
           setResultat({
             cle,
+            tentative,
             etat: {
               statut: 'erreur',
               message: messagePourUtilisateur(erreur),
@@ -100,8 +111,8 @@ export function useAsyncData<T>(cle: string, charger: () => Promise<T>): Chargem
   // C'est ici que le chargement est dérivé plutôt que poussé : tant que le
   // résultat mémorisé ne porte pas la clé de la demande courante, l'écran est
   // en chargement, et il l'est dès le premier rendu.
-  const etat: EtatAsync<T> =
-    resultat !== null && resultat.cle === cle ? resultat.etat : { statut: 'chargement' };
+  const etat = etatDerive(resultat, cle);
+  const enCours = chargementEnCours(resultat, cle, tentative);
 
-  return { etat, recharger };
+  return { etat, enCours, recharger };
 }
