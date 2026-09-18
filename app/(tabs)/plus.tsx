@@ -14,6 +14,14 @@
  * Dans la base, qui fait autorité, et sur l'appareil, qui permet d'afficher
  * « votre réponse ». La table des votes étant fermée en lecture, l'application
  * n'a aucun autre moyen de savoir ce qu'elle a voté.
+ *
+ * LA BASE DÉCIDE, ET SON REFUS SE VOIT
+ * -----------------------------------
+ * `voter()` ne lève pas d'erreur quand la base refuse un second vote : elle rend
+ * `false`. C'est une information, pas un échec, et elle doit être lue — sans
+ * quoi l'écran retiendrait le choix qui vient d'être touché et annoncerait
+ * « Votre réponse est enregistrée » pour un vote que la base n'a pas pris, avec
+ * un décompte qui ne le compte pas.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +33,7 @@ import { SondageCard } from '@/components/SondageCard';
 import { AppText, Card, ErrorNotice, LoadingView, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRafraichissement } from '@/hooks/useRafraichissement';
-import { enregistrerVote, lireVotesLocaux } from '@/lib/votes-locaux';
+import { enregistrerVote, lireVotesLocaux, voteARetenir } from '@/lib/votes-locaux';
 import { useTheme } from '@/providers/theme-provider';
 import { listerDocuments } from '@/services/documents';
 import { listerSondages, voter as voterEnBase } from '@/services/sondages';
@@ -73,11 +81,14 @@ export default function PlusScreen(): React.JSX.Element {
 
   const voter = useCallback(
     async (sondageId: string, choixId: string) => {
-      await voterEnBase(sondageId, choixId);
-      // L'écriture locale vient après celle de la base : si le vote a échoué,
-      // rien ne doit laisser croire à l'écran qu'il a été pris en compte.
-      await enregistrerVote(sondageId, choixId);
-      setVotes((actuels) => ({ ...actuels, [sondageId]: choixId }));
+      // C'est la réponse de la base, et non le choix touché, qui décide de ce que
+      // l'écran retient. Un refus signifie qu'elle détient déjà un autre choix
+      // pour cet appareil : retenir celui-ci afficherait une réponse inexistante.
+      const enregistre = await voterEnBase(sondageId, choixId);
+      const retenu = voteARetenir(choixId, enregistre);
+
+      await enregistrerVote(sondageId, retenu);
+      setVotes((actuels) => ({ ...actuels, [sondageId]: retenu }));
       sondages.recharger();
     },
     [sondages],

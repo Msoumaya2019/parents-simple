@@ -486,6 +486,39 @@ semaine qui contient demain contient demain, quel que soit le jour. Les six
 autres jours, le lendemain est déjà dans la semaine, donc rien ne bouge.
 `semaineDeCantine` porte la règle, tenue par `tests/cantine-semaine.test.ts`.
 
+### Le vote ne se rejoue pas
+
+La base n'enregistre qu'un vote par appareil et par sondage : `voter()` fait
+`on conflict (sondage_id, votant_id) do nothing`, et rend `false` quand la ligne
+existait déjà. Ce n'est pas un échec — la fonction est idempotente, ce qui
+protège aussi une requête rejouée sur une connexion qui vacille — mais c'est une
+information, et l'écran ne la lisait pas.
+
+Un parent qui avait voté A et touchait B voyait donc B mis en avant, avec la
+phrase « Votre réponse est enregistrée. », alors que la base gardait A. Le
+décompte affiché, lui, venait bien de la base, et ne comptait pas ce vote : un
+seul appui suffisait à atteindre ce parcours.
+
+Deux réparations, qui vont dans le même sens :
+
+- `voteARetenir` porte la règle : c'est la réponse de la base, jamais le choix
+  touché, qui décide de ce que l'appareil retient. Un refus laisse une trace
+  distincte — `CHOIX_INCONNU` — parce que l'application ne peut pas savoir quel
+  choix la base détient : la table des votes est fermée en lecture ;
+- les choix deviennent inactifs dès qu'un vote est connu, ce qui rend la
+  promesse vraie par construction plutôt que de la corriger après coup.
+
+Quand seul le vote est connu, et non le choix, les résultats s'affichent quand
+même et la mention le dit : « Un vote a déjà été enregistré depuis cet
+appareil. » Ce cas ne vient pas d'une réinstallation — l'identifiant de votant
+disparaît en même temps que la mémoire locale, et la base accepte le vote suivant
+— mais de la perte de la seule mémoire locale, ou de l'échec de son écriture.
+
+`tests/vote-retenu.test.ts` tient les deux bouts : la règle, exécutée, et la
+forme des appels dans `plus.tsx` et `SondageCard.tsx`, relue sur les sources
+privées de leurs commentaires — sans quoi une phrase de commentaire suffirait à
+satisfaire le contrôle.
+
 ---
 
 ## Sécurité

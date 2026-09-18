@@ -15,12 +15,24 @@
  * ----------------------------------------------------------
  * Une barre seule ne se lit pas au pixel près, et elle est invisible pour un
  * lecteur d'écran. Le nombre est donc affiché à côté, dans tous les cas.
+ *
+ * UN VOTE PAR APPAREIL, ET IL NE SE REJOUE PAS
+ * -------------------------------------------
+ * La base ne remplace pas un vote déjà déposé : `on conflict do nothing` fait
+ * qu'un second appui n'ajoute rien. Les choix deviennent donc inactifs dès qu'un
+ * vote est connu, plutôt que d'accepter un appui que la base ignorerait —
+ * l'écran montrerait alors une réponse qui n'existe pas.
+ *
+ * Quand le vote est connu mais pas le choix — la base a refusé un vote, et elle
+ * ne dit jamais lequel elle détient — les résultats s'affichent quand même, sans
+ * qu'aucun choix soit mis en avant, et la mention sous le décompte le dit.
  */
 
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText, Card, Pill } from '@/components/ui';
+import { voteSansChoix } from '@/lib/votes-locaux';
 import { useTheme } from '@/providers/theme-provider';
 import { partVotes, totalVotes } from '@/services/sondages';
 import type { ChoixSondage, Sondage } from '@/types/models';
@@ -44,11 +56,24 @@ export function SondageCard({
 
   const ferme = sondageFerme(sondage.ouvert, sondage.clotureLe);
   const aVote = choixRetenu !== null;
+  const choixConnu = aVote && !voteSansChoix(choixRetenu);
   const montrerResultats = aVote || ferme;
   const total = totalVotes(sondage);
 
+  // Un vote déjà déposé ne se rejoue pas : la base l'ignorerait, et l'écran
+  // afficherait alors une réponse qu'elle ne détient pas.
+  const inactif = ferme || aVote || enCours !== null;
+
+  const mentionVote = !aVote
+    ? ''
+    : choixConnu
+      ? ' Votre réponse est enregistrée.'
+      : ' Un vote a déjà été enregistré depuis cet appareil.';
+
   const voterPour = async (choixId: string): Promise<void> => {
-    if (ferme || enCours !== null) {
+    // Le même critère que la désactivation des lignes : une seule règle, pour
+    // qu'un appui ne puisse pas partir là où l'écran l'interdit.
+    if (inactif) {
       return;
     }
     setEnCours(choixId);
@@ -89,7 +114,7 @@ export function SondageCard({
             sondage={sondage}
             retenu={choixRetenu === choix.id}
             montrerResultats={montrerResultats}
-            desactive={ferme || enCours !== null}
+            desactive={inactif}
             enCours={enCours === choix.id}
             onPress={() => {
               void voterPour(choix.id);
@@ -108,7 +133,7 @@ export function SondageCard({
         {total === 0
           ? 'Aucun vote pour le moment.'
           : `${total} vote${total > 1 ? 's' : ''} exprimé${total > 1 ? 's' : ''}.`}
-        {aVote ? ' Votre réponse est enregistrée.' : ''}
+        {mentionVote}
       </AppText>
 
       {erreur !== null ? (

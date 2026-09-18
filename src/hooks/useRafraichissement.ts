@@ -38,10 +38,14 @@ export interface Rafraichissement {
 export function useRafraichissement(enCours: boolean, recharger: () => void): Rafraichissement {
   // `attente` reste vrai après le premier geste, et c'est voulu : il ne sert
   // qu'à distinguer « l'écran charge tout seul » de « l'utilisateur a demandé un
-  // rafraîchissement ». C'est `enCours` qui termine l'indicateur, et lui seul :
-  // le remettre à faux demanderait d'écrire un état dans un effet, ce que la
-  // règle `react-hooks/set-state-in-effect` refuse — et c'est cette règle qui a
-  // fait choisir une condition dérivée.
+  // rafraîchissement ». Une fois le premier geste fait, il ne les distingue plus :
+  // l'indicateur suit alors `enCours` seul, et un rechargement que personne n'a
+  // demandé — changer de semaine dans la Cantine — fait tourner la roue, puisque
+  // `Screen` la commande par `rafraichissement.enCours`. Défaut d'affichage mineur
+  // et assumé : le corriger demanderait de remettre `attente` à faux à la fin du
+  // chargement, donc d'écrire un état dans un effet, ce que la règle
+  // `react-hooks/set-state-in-effect` refuse — et c'est cette règle qui a fait
+  // choisir une condition dérivée.
   const [attente, setAttente] = useState(false);
 
   const tirerPourRafraichir = useCallback(() => {

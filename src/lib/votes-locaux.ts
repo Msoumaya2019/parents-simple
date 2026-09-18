@@ -20,14 +20,36 @@
  * CE FICHIER NE FAIT PAS AUTORITÉ
  * -------------------------------
  * La valeur enregistrée ici est un confort d'affichage, pas une preuve. La
- * vérité reste dans la base, protégée par la contrainte d'unicité. Si les deux
- * divergent — après une réinstallation, par exemple — c'est la base qui a
- * raison, et le vote sera simplement refusé sans erreur.
+ * vérité reste dans la base, protégée par la contrainte d'unicité : un appareil
+ * ne vote qu'une fois par sondage, et la base ne remplace pas un vote déjà
+ * déposé.
+ *
+ * Quand la base refuse un vote, elle ne dit pas lequel elle détient — la table
+ * des votes est fermée en lecture. On apprend une seule chose : cet appareil a
+ * voté. `CHOIX_INCONNU` est la trace de ce cas.
+ *
+ * Les deux mémoires ne peuvent diverger que dans un sens : la mémoire locale
+ * perdue alors que la base garde le vote. Une réinstallation ne produit pas ce
+ * cas — l'identifiant de votant disparaît en même temps que le reste, et la base
+ * accepte le vote suivant. Il faut que le stockage local soit abîmé, ou que son
+ * écriture échoue.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CLE_VOTES = 'freres-lumieres.votes';
+
+/**
+ * Trace d'un vote dont le choix n'est pas connu.
+ *
+ * La chaîne vide, et non `null` : `null` veut dire « rien de connu », et la
+ * carte doit pouvoir distinguer les deux — un appareil qui a voté sans que l'on
+ * sache quoi ne se comporte pas comme un appareil dont on ne sait rien.
+ *
+ * Un identifiant de choix est toujours un UUID : cette valeur ne peut pas être
+ * confondue avec l'un d'eux.
+ */
+export const CHOIX_INCONNU = '';
 
 type TableVotes = Record<string, string>;
 
@@ -63,11 +85,40 @@ export async function lireVotesLocaux(): Promise<TableVotes> {
   return lireTable();
 }
 
-/** Enregistre le choix retenu pour un sondage. */
-export async function enregistrerVote(sondageId: string, choixId: string): Promise<void> {
+/**
+ * Ce qu'il faut retenir après la réponse de la base.
+ *
+ * `enregistre` est le booléen rendu par `voter()` : `true` si la base a
+ * enregistré le vote, `false` si elle en détenait déjà un pour cet appareil.
+ *
+ * Un refus n'est pas une erreur, c'est une information : le choix touché n'est
+ * pas celui que la base détient. Le retenir ferait afficher une réponse qui
+ * n'existe pas, et le décompte — qui vient de la base — ne compterait pas ce
+ * vote. On retient donc `CHOIX_INCONNU`.
+ *
+ * Le choix touché n'est jamais perdu par accident : quand la base enregistre,
+ * c'est lui qui est retenu. La fonction ne rend donc jamais `null` — après une
+ * réponse de la base, on sait toujours quelque chose.
+ */
+export function voteARetenir(choixTouche: string, enregistre: boolean): string {
+  return enregistre ? choixTouche : CHOIX_INCONNU;
+}
+
+/** Vrai si l'appareil a voté sur ce sondage sans que le choix soit connu. */
+export function voteSansChoix(retenu: string | null): boolean {
+  return retenu === CHOIX_INCONNU;
+}
+
+/**
+ * Enregistre le choix retenu pour un sondage.
+ *
+ * `retenu` peut valoir `CHOIX_INCONNU` : on retient alors qu'un vote existe,
+ * sans son contenu.
+ */
+export async function enregistrerVote(sondageId: string, retenu: string): Promise<void> {
   try {
     const table = await lireTable();
-    table[sondageId] = choixId;
+    table[sondageId] = retenu;
     await AsyncStorage.setItem(CLE_VOTES, JSON.stringify(table));
   } catch {
     // Échec sans conséquence : le vote est bien enregistré en base. Seule la

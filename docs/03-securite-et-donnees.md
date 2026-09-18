@@ -98,14 +98,20 @@ seul coup, plutôt qu'en autant de requêtes que de sondages.
 
 ### `voter(uuid, uuid, uuid)`
 
-Refuse un sondage fermé ou dont la date de clôture est passée. Vérifie que le
-choix appartient bien au sondage. Ignore un second vote du même appareil plutôt
-que d'échouer : `on conflict do nothing` rend la fonction idempotente, ce qui
-protège aussi le cas d'une connexion qui vacille et dont la requête est rejouée.
+Refuse un sondage fermé ou dont la date de clôture est passée. Ignore un second
+vote du même appareil plutôt que d'échouer : `on conflict do nothing` rend la
+fonction idempotente, ce qui protège aussi le cas d'une connexion qui vacille et
+dont la requête est rejouée.
 
-Un déclencheur `verifier_vote_coherent` double la vérification au niveau de la
-table, pour qu'un vote ne puisse pas désigner le sondage A et le choix n° 4 du
-sondage B.
+Elle rend `true` quand le vote est enregistré, `false` quand elle en ignorait un
+autre. **L'application doit lire ce booléen** : sans lui, elle afficherait comme
+enregistré un choix que la base n'a pas pris. Voir « Le vote ne se rejoue pas »
+dans le README.
+
+Le choix appartient-il bien au sondage ? La fonction ne le vérifie pas
+elle-même : c'est un déclencheur `verifier_vote_coherent`, posé sur la table,
+qui le fait — et il le fait donc pour toute écriture, y compris celles qui ne
+passeraient pas par la fonction.
 
 ### `envoyer_message(...)`
 

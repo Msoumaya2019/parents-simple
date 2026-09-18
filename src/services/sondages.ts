@@ -90,6 +90,11 @@ export async function listerSondages(limite = 10): Promise<readonly Sondage[]> {
  * Rend `true` si le vote a été enregistré, `false` s'il existait déjà pour cet
  * appareil. Les deux cas sont des succès du point de vue de l'utilisateur :
  * appuyer deux fois ne doit pas produire de message d'erreur.
+ *
+ * Ce booléen doit être lu, et non seulement reçu. `false` n'est pas un détail
+ * d'implémentation : il dit que la base détient déjà un autre choix pour cet
+ * appareil, et que celui qui vient d'être proposé n'a pas été retenu. L'appelant
+ * qui l'ignore affiche une réponse que la base n'a pas.
  */
 export async function voter(sondageId: string, choixId: string): Promise<boolean> {
   const votant = await identifiantVotant();
