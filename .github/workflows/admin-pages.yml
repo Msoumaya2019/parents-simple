@@ -1,0 +1,122 @@
+# =============================================================================
+#  Mise à disposition de la page d'administration
+# =============================================================================
+#
+#  Construit `admin/` et le publie sur GitHub Pages, à l'adresse
+#  https://msoumaya2019.github.io/parents-simple/
+#
+#  POURQUOI CE FLUX EXISTE, ALORS QUE LA PAGE SE DÉPLOIE DÉJÀ SUR VERCEL
+#  --------------------------------------------------------------------
+#  Parce que GitHub Pages ne demande aucun compte de plus, et que le dépôt est
+#  public. La page est un ensemble de fichiers statiques : elle n'a besoin
+#  d'aucun serveur, d'aucune fonction, et d'aucun secret à l'exécution. Les deux
+#  variables dont elle a besoin à la CONSTRUCTION sont publiques par nature —
+#  l'une est l'adresse du projet, l'autre la clé que n'importe qui peut extraire
+#  de l'APK. Elles sont donc lues depuis les secrets déjà en place pour
+#  l'intégration continue, et n'en demandent aucun nouveau.
+#
+#  POURQUOI LES CHEMINS RELATIFS COMPTENT ICI PLUS QU'AILLEURS
+#  ----------------------------------------------------------
+#  Un site de projet sur GitHub Pages est servi dans un SOUS-DOSSIER —
+#  `/parents-simple/` — et non à la racine du domaine. C'est exactement le cas
+#  que `base: './'` rend possible, et exactement celui qui aurait échoué avant
+#  qu'on s'aperçoive que la clé `base` avait disparu de `vite.config.ts` : la
+#  page aurait demandé `https://msoumaya2019.github.io/assets/…`, qui n'existe
+#  pas. Le contrôle `admin:page` ci-dessous refuse une page qui ferait cela,
+#  donc ce flux ne peut pas publier une page cassée.
+#
+#  CE QUE CE FLUX NE FAIT PAS
+#  --------------------------
+#  Il ne publie RIEN de l'application mobile : elle se distribue autrement, par
+#  les deux flux de compilation, et n'a pas sa place sur un site public.
+#
+#  Il ne décide d'aucun droit. La page n'a aucun pouvoir propre : tout ce qu'une
+#  personne peut y faire est décidé par les politiques de `supabase/migrations/`.
+#  La publier n'ouvre donc rien — c'est ce qui rend cette mise à disposition
+#  acceptable, et c'est écrit dans l'en-tête de `admin/src/lib/client.ts`.
+#
+#  L'ADRESSE RESTE À CONNAÎTRE
+#  ---------------------------
+#  Elle est publique, et `index.html` porte `noindex`. Ce n'est pas une
+#  protection : c'est pour qu'une recherche sur le nom de l'école n'y conduise
+#  pas un parent.
+# =============================================================================
+
+name: Mise à disposition de l'administration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/**'
+      - '.github/workflows/admin-pages.yml'
+  workflow_dispatch:
+
+# Un déploiement de production ne s'annule pas : laisser une mise à disposition
+# inachevée vaut moins qu'une mise à disposition en retard.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  publier:
+    name: Publier la page
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v5
+
+      # `cache-dependency-path` désigne le verrou de l'administration : le
+      # verrou de la racine ne décrit pas ses dépendances, et le laisser par
+      # défaut ferait restaurer un cache qui ne correspond à rien.
+      - name: Installer Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      # `npm ci` et non `npm install` : installe exactement l'arbre du
+      # verrouillage, et échoue si le manifeste et le verrou ont divergé.
+      - name: Installer les dépendances de l'administration
+        run: npm --prefix admin ci
+
+      # Les deux variables sont lues ici, une seule fois, et disparaissent
+      # ensuite : Vite les remplace statiquement à la compilation, donc la page
+      # publiée ne contient aucune référence à un secret d'exécution.
+      - name: Construire l'administration
+        run: npm --prefix admin run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      # Le contrôle qui tranche, et il passe AVANT la publication : il lit le
+      # `index.html` produit et refuse toute ressource référencée depuis la
+      # racine du domaine. Publier d'abord et constater ensuite laisserait une
+      # page cassée en ligne, ce que personne ne remarquerait avant qu'un
+      # membre du bureau essaie de publier une annonce.
+      - name: Vérifier la page construite
+        run: npm run admin:page
+
+      - name: Préparer la mise à disposition
+        uses: actions/configure-pages@v5
+
+      - name: Téléverser la page
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: admin/dist
+
+      - name: Déployer
+        id: deploiement
+        uses: actions/deploy-pages@v5

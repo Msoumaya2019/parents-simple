@@ -377,10 +377,12 @@ laisser vert en train de sonder un compartiment disparu.
 > chemin puisse être éprouvé à la main en attendant.
 
 Les deux contrôles exigent une configuration et ne font donc pas partie de
-`npm run verify`, qui doit tourner sans aucun secret. **Les trois flux de travail
-les exécutent** : `ci.yml` à chaque poussée vers `main`, et les deux flux de mise
+`npm run verify`, qui doit tourner sans aucun secret. **Trois flux de travail les
+exécutent** : `ci.yml` à chaque poussée vers `main`, et les deux flux de mise
 à disposition **avant de compiler**. On ne produit ni un APK ni un IPA pour une
-base ouverte, ni pour une base que l'application ne sait pas interroger.
+base ouverte, ni pour une base que l'application ne sait pas interroger. Le
+quatrième, `admin-pages.yml`, publie la page d'administration : il n'éprouve pas
+la base, et n'a donc besoin d'aucun secret.
 
 > **Conséquence à connaître** : `securite:api` échoue tant que la migration
 > `20260918001000_membres_bureau.sql` n'est pas appliquée — la table

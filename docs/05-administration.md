@@ -172,19 +172,40 @@ modifie pas depuis la page.
 > cas ici : la page ne vend rien et n'affiche aucune publicité. Le jour où
 > l'association encaisserait quelque chose par ce biais, il faudrait en changer.
 
-### Ou sans compte supplémentaire, sur GitHub Pages
+### Ou sans compte supplémentaire, sur GitHub Pages — déjà en place
 
-La page est un ensemble de fichiers statiques : elle se dépose n'importe où.
-`base: './'` dans `vite.config.ts` fait que les chemins sont relatifs, donc le
-dossier fonctionne aussi bien à la racine d'un domaine que dans un sous-dossier.
+**Rien à faire : c'est publié automatiquement.**
+
+```
+https://msoumaya2019.github.io/parents-simple/
+```
+
+Le flux `.github/workflows/admin-pages.yml` construit `admin/` à chaque poussée
+qui touche le dossier, vérifie la page produite, puis la publie. Les deux
+variables lui viennent des secrets `SUPABASE_URL` et `SUPABASE_ANON_KEY`, déjà
+présents pour l'intégration continue : aucun secret nouveau, et aucun compte à
+ouvrir. Pour republier à la main, onglet **Actions** → _Mise à disposition de
+l'administration_ → **Run workflow**.
+
+Un site de projet GitHub Pages est servi dans un **sous-dossier** — ici
+`/parents-simple/` — et non à la racine du domaine. C'est précisément le cas que
+`base: './'` rend possible, et celui qui aurait échoué avant qu'on s'aperçoive
+que la clé `base` avait disparu de `vite.config.ts` : la page aurait demandé
+`https://msoumaya2019.github.io/assets/…`, qui n'existe pas.
+
+> La publication ne fait que rendre la page **joignable**. Elle ne peut rien
+> écrire tant que la migration n'est pas appliquée, et rien de plus ensuite que
+> ce que les politiques de la base autorisent : la page n'a aucun pouvoir propre.
+
+Pour publier ailleurs — un domaine de l'association, par exemple — la page est un
+ensemble de fichiers statiques qui se dépose n'importe où :
 
 ```
 npm run admin:install
 npm --prefix admin run build
 ```
 
-Puis publier `admin/dist/`. Le dépôt étant public, GitHub Pages suffit et évite
-d'ouvrir un compte de plus.
+Puis déposer `admin/dist/`.
 
 ### Le contrôle qui tient cette promesse
 

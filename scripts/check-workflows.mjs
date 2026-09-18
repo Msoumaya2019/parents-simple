@@ -82,7 +82,7 @@ function verifierSyntaxe(script) {
 //  échoue, et un fichier AJOUTÉ échoue aussi tant qu'il n'est pas déclaré ici.
 //  Déclarer est le prix, et il est utile : il force à se demander si le nouveau
 //  flux doit tourner dans les trois chaînes ou seulement dans une.
-const FLUX_ATTENDUS = ['android-apk.yml', 'ci.yml', 'ios-unsigned.yml'];
+const FLUX_ATTENDUS = ['admin-pages.yml', 'android-apk.yml', 'ci.yml', 'ios-unsigned.yml'];
 
 //  `readdirSync` ne garantit aucun ordre : trier rend les messages stables d'une
 //  machine à l'autre, ce dont un test a besoin pour comparer une sortie.

@@ -43,7 +43,13 @@ const CHEMIN_CONTROLE = fileURLToPath(new URL('../scripts/check-workflows.mjs', 
 //  Recopiés à dessein, et non importés du contrôle : ce que le banc vérifie,
 //  c'est précisément que cette liste est tenue. La lire depuis le script qu'elle
 //  éprouve rendrait l'accord vrai par construction.
-const FLUX_ATTENDUS = ['android-apk.yml', 'ci.yml', 'ios-unsigned.yml'];
+//
+//  C'est donc un PIÈGE, et il a fonctionné : ajouter `admin-pages.yml` au
+//  contrôle a fait tomber les deux premiers cas. Le décor doit porter exactement
+//  les noms attendus par le contrôle, sinon il échoue sur une absence qui n'a
+//  rien à voir avec ce qu'on éprouve ici. Une seule liste à tenir : le décompte
+//  et le titre se déduisent, pour qu'un flux ajouté ne demande qu'une ligne.
+const FLUX_ATTENDUS = ['admin-pages.yml', 'android-apk.yml', 'ci.yml', 'ios-unsigned.yml'];
 
 /** Un flux minimal mais valide : le contrôle ne doit rien y trouver à redire. */
 const FLUX_VALIDE = [
@@ -84,11 +90,11 @@ function lancer(dossier) {
 }
 
 describe('check-workflows face à un flux manquant', () => {
-  it('les trois flux attendus présents : il passe', () => {
+  it('tous les flux attendus présents : il passe', () => {
     const verdict = dansUnDossier(FLUX_ATTENDUS, lancer);
 
     assert.equal(verdict.code, 0, `attendu 0, obtenu ${verdict.code} — ${verdict.erreur}`);
-    assert.match(verdict.sortie, /3 flux de travail/);
+    assert.match(verdict.sortie, new RegExp(`${FLUX_ATTENDUS.length} flux de travail`));
     assert.match(verdict.sortie, /Tous les flux de travail sont valides/);
   });
 
