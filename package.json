@@ -29,7 +29,8 @@
     "admin:install": "cd admin && npm install --no-audit --no-fund",
     "admin:dev": "npm --prefix admin run dev",
     "admin:build": "npm --prefix admin run build",
-    "admin:verify": "npm run admin:install && npm run admin:build",
+    "admin:page": "node scripts/verifier-page-admin.mjs",
+    "admin:verify": "npm run admin:install && npm run admin:build && npm run admin:page",
     "verify": "npm run workflows:check && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run sql:check && npm run admin:check && npm run export:android && npm run admin:verify"
   },
   "dependencies": {

@@ -697,6 +697,49 @@ verifier(
 );
 
 // ---------------------------------------------------------------------------
+//  9. La page est déployable ailleurs qu'à la racine d'un domaine
+// ---------------------------------------------------------------------------
+//  `base` vaut `/` par défaut dans Vite : le `index.html` produit référence
+//  alors `/assets/…`, en absolu. La page fonctionne donc à la racine d'un
+//  domaine — le cas du déploiement prévu — et échoue dans un sous-dossier, en
+//  silence : les fichiers sont là, le navigateur les cherche au mauvais
+//  endroit.
+//
+//  Le défaut mesuré n'était pas une mauvaise valeur, c'était une valeur
+//  ABSENTE : le commentaire de `vite.config.ts` décrivait `base: './'` depuis
+//  longtemps, mais la clé n'existait plus. Une intention écrite n'est pas un
+//  réglage, et rien dans le langage ne relie les deux.
+//
+//  D'où la forme du contrôle, qui est le point délicat : les commentaires sont
+//  retirés AVANT la recherche. Ce fichier de configuration cite lui-même la
+//  valeur dans sa prose, et un motif qui l'ignorerait trouverait la phrase au
+//  lieu du réglage — c'est-à-dire exactement le défaut qu'on veut interdire. Le
+//  contrôle serait vert sur le fichier fautif.
+
+const CONFIG_VITE = path.join(RACINE, 'admin', 'vite.config.ts');
+const sourceVite = fs.readFileSync(CONFIG_VITE, 'utf8');
+
+const viteSansCommentaires = sourceVite
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^[ \t]*\/\/.*$/gm, '');
+
+// Garde-fou d'extraction : si le retrait des commentaires vidait le fichier —
+// motif trop gourmand, encodage inattendu —, l'absence de `base` serait
+// attribuée au fichier alors qu'elle viendrait du contrôle. La configuration
+// doit garder de quoi être lue.
+const viteLisible = viteSansCommentaires.includes('defineConfig');
+
+verifier(
+  viteLisible && viteSansCommentaires.length > 100,
+  `La configuration de Vite a été lue hors commentaires (${viteSansCommentaires.length} caractère(s) retenu(s)).`,
+);
+
+verifier(
+  /(^|[\s,{])base\s*:\s*['"]\.\/['"]/m.test(viteSansCommentaires),
+  "La configuration de Vite règle `base` sur './' — un réglage, pas une phrase : le dossier `dist/` doit pouvoir être déposé à la racine d'un domaine comme dans un sous-dossier.",
+);
+
+// ---------------------------------------------------------------------------
 //  Rapport
 // ---------------------------------------------------------------------------
 
