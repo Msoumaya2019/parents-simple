@@ -408,7 +408,7 @@ admin/                      Page d'administration du bureau (statique, sans serv
   src/lib/                  Configuration, client, requêtes, bornes de saisie
   src/ecrans/               Connexion, annonces, cantine, agenda, documents
   src/components/           Champs et avis partagés
-scripts/                    Contrôles automatiques
+scripts/                    Contrôles automatiques et outils ponctuels
 ```
 
 L'administration est une application distincte, avec son propre
