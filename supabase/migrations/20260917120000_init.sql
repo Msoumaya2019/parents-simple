@@ -333,8 +333,22 @@ comment on table public.messages is
 -- =============================================================================
 --  4. Index
 -- =============================================================================
---  Chaque index correspond à une requête réellement écrite dans `src/services/`.
+--  Chaque index correspond à une requête réellement écrite : dans
+--  `src/services/` pour la plupart, et dans les fonctions de cette migration
+--  pour ceux que l'application n'interroge pas directement — `sondage_resultats()`
+--  et `envoyer_message()` lisent des tables que la clé publique ne peut pas
+--  atteindre. Chercher les usages dans `src/services/` seul ferait passer trois
+--  d'entre eux pour inutiles.
 --  Un index sans requête coûte à l'écriture et ne sert à rien.
+--  `tests/index-et-requetes.test.ts` tient cet accord, index par index.
+--
+--  Une exception, et une seule : `sondage_votes_sondage_idx` porte `sondage_id`,
+--  qui est le préfixe de `sondage_votes_unique (sondage_id, votant_id)`. L'index
+--  unique couvre déjà tout accès par `sondage_id`, y compris la recherche des
+--  lignes à supprimer en cascade : celui-ci est donc redondant, et cette section
+--  le refuse par principe. Il est laissé en place parce que la migration est
+--  appliquée et n'est pas rejouable — le retirer du fichier ferait diverger le
+--  dépôt du schéma déployé sans rien apporter.
 
 --  Le fil d'accueil : épinglées d'abord, puis les plus récentes.
 create index annonces_fil_idx

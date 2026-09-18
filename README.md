@@ -519,6 +519,36 @@ forme des appels dans `plus.tsx` et `SondageCard.tsx`, relue sur les sources
 privées de leurs commentaires — sans quoi une phrase de commentaire suffirait à
 satisfaire le contrôle.
 
+### Les index et les requêtes
+
+La section « Index » de la migration promet que chaque index correspond à une
+requête réellement écrite. La promesse était inexacte, et rien ne la tenait.
+
+Inexacte, parce que trois des sept index servent des requêtes écrites **dans la
+migration elle-même** — `sondage_resultats()` et `envoyer_message()` lisent des
+tables que la clé publique ne peut pas atteindre. Un lecteur qui aurait cherché
+leurs usages dans `src/services/` en aurait conclu qu'ils étaient inutiles.
+
+Non tenue, parce qu'un `.order` modifié d'un côté seulement — ou un sens inversé
+dans l'index — laissait la requête sans index sans que rien ne le signale.
+L'application continue de fonctionner, simplement plus lentement, et personne ne
+relit un index.
+
+`tests/index-et-requetes.test.ts` relit les index déclarés — colonnes **et**
+sens — et exige qu'une requête les emploie : un tri de `src/services/` dont les
+colonnes et les sens coïncident exactement, sinon un filtre, sinon une fonction de
+la migration. La liste des index attendus y est **fermée** : en ajouter un fait
+échouer le banc tant qu'il n'y est pas inscrit, avec la requête qui l'emploie.
+
+Le banc ne prouve pas que PostgreSQL emploie l'index — le planificateur décide, et
+seul un `explain analyze` sur la base réelle le dirait. Il tient l'accord entre ce
+qui est déclaré et ce qui est écrit, qui en est la condition nécessaire.
+
+Un index reste redondant, et c'est écrit dans la migration :
+`sondage_votes_sondage_idx` porte `sondage_id`, qui est le préfixe de l'index
+unique `sondage_votes_unique (sondage_id, votant_id)`. Il est laissé en place
+parce que la migration est appliquée et n'est pas rejouable.
+
 ---
 
 ## Sécurité
