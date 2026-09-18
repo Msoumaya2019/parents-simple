@@ -9,6 +9,9 @@
  * C'est pourquoi il n'a pas de rôle accessible : un lecteur d'écran annonce la
  * carte comme un bouton, avec son titre, et lirait « Lire la suite » une seconde
  * fois sans rien apprendre de plus.
+ *
+ * La flèche qui suit le libellé est masquée aux lecteurs d'écran, pour la même
+ * raison : elle ne dit rien que le libellé ne dise déjà.
  */
 
 import { StyleSheet, View } from 'react-native';
@@ -30,7 +33,7 @@ export function LienAction({ libelle, couleur }: LienActionProps): React.JSX.Ele
       <AppText variant="label" style={{ color: couleur }}>
         {libelle}
       </AppText>
-      <Ionicons name="arrow-forward" size={15} color={couleur} />
+      <Ionicons name="arrow-forward" size={15} color={couleur} aria-hidden />
     </View>
   );
 }

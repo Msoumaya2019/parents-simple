@@ -70,7 +70,7 @@ export function AccesRapide({
           },
         ]}
       >
-        <Ionicons name={icone} size={20} color={pastel.encre} />
+        <Ionicons name={icone} size={20} color={pastel.encre} aria-hidden />
       </View>
 
       <View style={styles.textes}>
@@ -82,7 +82,7 @@ export function AccesRapide({
         </AppText>
       </View>
 
-      <Ionicons name="chevron-forward" size={16} color={pastel.encre} />
+      <Ionicons name="chevron-forward" size={16} color={pastel.encre} aria-hidden />
     </Pressable>
   );
 }

@@ -230,7 +230,7 @@ function LigneAction({ icone, titre, sousTitre, onPress }: LigneActionProps): Re
           { backgroundColor: theme.colors.primarySoft, borderRadius: theme.radii.md },
         ]}
       >
-        <Ionicons name={icone} size={20} color={theme.colors.primary} />
+        <Ionicons name={icone} size={20} color={theme.colors.primary} aria-hidden />
       </View>
 
       <View style={styles.ligneActionTexte}>
@@ -240,7 +240,7 @@ function LigneAction({ icone, titre, sousTitre, onPress }: LigneActionProps): Re
         </AppText>
       </View>
 
-      <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+      <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} aria-hidden />
     </Pressable>
   );
 }

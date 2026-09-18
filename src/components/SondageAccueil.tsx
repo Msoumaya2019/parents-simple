@@ -55,7 +55,7 @@ export function SondageAccueil({ sondage, onParticiper }: SondageAccueilProps): 
             { backgroundColor: theme.colors.surface, borderRadius: theme.radii.lg },
           ]}
         >
-          <Ionicons name="stats-chart" size={22} color={violet.encre} />
+          <Ionicons name="stats-chart" size={22} color={violet.encre} aria-hidden />
         </View>
 
         <View style={styles.colonne}>

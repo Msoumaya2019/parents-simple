@@ -108,7 +108,12 @@ export default function ReglagesScreen(): React.JSX.Element {
                 </View>
 
                 {choisie ? (
-                  <Ionicons name="checkmark-circle" size={22} color={theme.colors.primary} />
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={22}
+                    color={theme.colors.primary}
+                    aria-hidden
+                  />
                 ) : (
                   <View
                     style={[styles.cercle, { borderColor: theme.colors.border, borderRadius: 11 }]}
@@ -187,6 +192,10 @@ export default function ReglagesScreen(): React.JSX.Element {
 }
 
 /** L'icône qui accompagne chaque ton. Le ton vient de `@/lib/diagnostic`. */
+// Masquée aux lecteurs d'écran : le libellé de la ligne dit déjà l'état en
+// mots — « La base répond », « La base ne répond pas » —, et la couleur ne fait
+// que le renforcer. C'est la règle du projet : le texte porte l'information
+// seul.
 const ICONE_PAR_TON: Record<TonDiagnostic, keyof typeof Ionicons.glyphMap> = {
   succes: 'checkmark-circle-outline',
   alerte: 'alert-circle-outline',
@@ -215,7 +224,7 @@ function LigneDiagnostic({
   return (
     <View style={[styles.ligneDiagnostic, { paddingVertical: theme.spacing.sm }]}>
       <View style={styles.diagnosticLibelle}>
-        <Ionicons name={ICONE_PAR_TON[ton]} size={18} color={couleur} />
+        <Ionicons name={ICONE_PAR_TON[ton]} size={18} color={couleur} aria-hidden />
         <AppText variant="body" color="secondary">
           {libelle}
         </AppText>

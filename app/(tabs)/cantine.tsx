@@ -240,6 +240,7 @@ function BoutonSemaine({
         name={estPrecedent ? 'chevron-back' : 'chevron-forward'}
         size={22}
         color={theme.colors.primary}
+        aria-hidden
       />
     </Pressable>
   );

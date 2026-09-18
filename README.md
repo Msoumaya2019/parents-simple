@@ -549,6 +549,27 @@ Un index reste redondant, et c'est écrit dans la migration :
 unique `sondage_votes_unique (sondage_id, votant_id)`. Il est laissé en place
 parce que la migration est appliquée et n'est pas rejouable.
 
+### Les icônes décoratives
+
+Une icône posée à côté d'un libellé ne dit rien de plus que lui. Sans masquage,
+un lecteur d'écran s'arrête pourtant dessus : `@expo/vector-icons` rend chaque
+glyphe dans un `Text`, et un `Text` est accessible par défaut sur iOS.
+
+Toutes les `<Ionicons>` du projet portent donc `aria-hidden`, que React Native
+traduit en `accessibilityElementsHidden` et, quand il vaut `true`, en
+`importantForAccessibility = 'no-hide-descendants'` — vérifié dans
+`Libraries/Components/View/View.js` et `Libraries/Text/Text.js`.
+
+`tests/icones-decoratives.test.ts` l'exige **par élément**, et tient en outre la
+liste des fichiers porteurs d'une icône : un fichier ajouté, ou une icône
+retirée, le fait échouer. C'est ce qui empêche l'inventaire de se vider en
+silence, un banc qui ne trouve plus rien passant toujours.
+
+Le banc lit la présence de la prop, jamais son effet : aucun moteur de rendu
+n'est installé. Il ne se satisfait pas non plus d'un commentaire — la recherche
+porte sur la balise privée de ses commentaires, sans quoi la phrase qui _nomme_
+`aria-hidden` suffirait à la faire passer pour posée.
+
 ---
 
 ## Sécurité

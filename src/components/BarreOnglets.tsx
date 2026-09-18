@@ -165,6 +165,7 @@ export function BarreOnglets({
                 name={selectionne ? icone.iconeActive : icone.icone}
                 size={TAILLE_ICONE}
                 color={couleur}
+                aria-hidden
               />
               <AppText
                 variant="caption"

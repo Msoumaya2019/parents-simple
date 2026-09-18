@@ -75,7 +75,20 @@ export function Pill({ libelle, ton = 'neutre', icone }: PillProps): React.JSX.E
         },
       ]}
     >
-      {icone === undefined ? null : <Ionicons name={icone} size={13} color={choix.encre} />}
+      {icone === undefined ? null : (
+        <Ionicons
+          name={icone}
+          size={13}
+          color={choix.encre}
+          // Le glyphe est un caractère : sans ce masquage, un lecteur d'écran
+          // l'annonce comme un élément de plus, à côté du libellé qui dit déjà
+          // tout. `aria-hidden` est traduit par React Native en
+          // `accessibilityElementsHidden` sur iOS et en
+          // `importantForAccessibility` sur Android — vérifié dans
+          // `Libraries/Components/View/View.js` de la version installée.
+          aria-hidden
+        />
+      )}
       <AppText variant="caption" style={{ color: choix.encre }}>
         {libelle}
       </AppText>

@@ -148,7 +148,12 @@ export default function DocumentsScreen(): React.JSX.Element {
                     { backgroundColor: theme.colors.primarySoft, borderRadius: theme.radii.md },
                   ]}
                 >
-                  <Ionicons name="document-text" size={20} color={theme.colors.primary} />
+                  <Ionicons
+                    name="document-text"
+                    size={20}
+                    color={theme.colors.primary}
+                    aria-hidden
+                  />
                 </View>
 
                 <View style={styles.texte}>
@@ -171,7 +176,12 @@ export default function DocumentsScreen(): React.JSX.Element {
                   </View>
                 </View>
 
-                <Ionicons name="download-outline" size={20} color={theme.colors.textMuted} />
+                <Ionicons
+                  name="download-outline"
+                  size={20}
+                  color={theme.colors.textMuted}
+                  aria-hidden
+                />
               </Pressable>
             ))}
           </View>

@@ -77,6 +77,7 @@ export function ImageDistante({
             size={26}
             color={pastel.encre}
             style={etat === 'echec' ? styles.efface : undefined}
+            aria-hidden
           />
         </View>
       ) : null}

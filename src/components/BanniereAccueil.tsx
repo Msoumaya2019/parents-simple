@@ -196,7 +196,7 @@ export function BanniereAccueil({
           <AppText variant="label" color="accent" style={styles.formuleTexte}>
             {FORMULE}
           </AppText>
-          <Ionicons name="sparkles" size={14} color={theme.colors.primary} />
+          <Ionicons name="sparkles" size={14} color={theme.colors.primary} aria-hidden />
         </View>
       </View>
     </View>
