@@ -34,6 +34,15 @@
 --  publique dans l'application mobile, plus la session de la personne
 --  connectée. La clé `service_role` n'a pas à quitter le tableau de bord, et
 --  c'est une bonne nouvelle : elle n'a donc aucun endroit où fuiter.
+--
+--  REJOUABLE, PARCE QU'ELLE EST APPLIQUÉE À LA MAIN
+--  ------------------------------------------------
+--  Cette migration se colle dans l'éditeur SQL, sans historique : si elle
+--  échoue au milieu, rien ne dit où reprendre. Chaque instruction est donc
+--  écrite pour être rejouable — `create table if not exists`, et un
+--  `drop policy if exists` avant chaque `create policy`. Rejouer une migration
+--  déjà appliquée est alors sans effet, au lieu de lever « relation already
+--  exists » et de faire croire à un échec.
 -- =============================================================================
 
 
@@ -49,7 +58,7 @@
 --  n'est pas la clé : deux comptes peuvent porter le même courriel dans des
 --  circonstances exceptionnelles, et surtout une personne peut changer
 --  d'adresse. La clé est `user_id`, qui ne change jamais.
-create table public.membres_bureau (
+create table if not exists public.membres_bureau (
   user_id    uuid primary key references auth.users (id) on delete cascade,
   courriel   text not null,
   ajoute_le  timestamptz not null default now(),
@@ -208,31 +217,37 @@ grant select, insert, update, delete on public.documents     to authenticated;
 --  propriété que `scripts/verifier-securite-api.mjs` éprouve contre la base
 --  réelle, et qui échouerait si quelqu'un en ajoutait une par mégarde.
 
+drop policy if exists annonces_bureau on public.annonces;
 create policy annonces_bureau
   on public.annonces for all to authenticated
   using (public.est_membre_bureau())
   with check (public.est_membre_bureau());
 
+drop policy if exists cantine_menus_bureau on public.cantine_menus;
 create policy cantine_menus_bureau
   on public.cantine_menus for all to authenticated
   using (public.est_membre_bureau())
   with check (public.est_membre_bureau());
 
+drop policy if exists agenda_events_bureau on public.agenda_events;
 create policy agenda_events_bureau
   on public.agenda_events for all to authenticated
   using (public.est_membre_bureau())
   with check (public.est_membre_bureau());
 
+drop policy if exists documents_bureau on public.documents;
 create policy documents_bureau
   on public.documents for all to authenticated
   using (public.est_membre_bureau())
   with check (public.est_membre_bureau());
 
+drop policy if exists sondages_bureau on public.sondages;
 create policy sondages_bureau
   on public.sondages for all to authenticated
   using (public.est_membre_bureau())
   with check (public.est_membre_bureau());
 
+drop policy if exists sondage_choix_bureau on public.sondage_choix;
 create policy sondage_choix_bureau
   on public.sondage_choix for all to authenticated
   using (public.est_membre_bureau())
@@ -252,11 +267,13 @@ create policy sondage_choix_bureau
 --  contenu. Sans elle, un membre du bureau pourrait écrire dans n'importe quel
 --  compartiment du projet, y compris ceux qu'on ajouterait plus tard.
 
+drop policy if exists annonces_storage_bureau on storage.objects;
 create policy annonces_storage_bureau
   on storage.objects for all to authenticated
   using (bucket_id = 'annonces' and public.est_membre_bureau())
   with check (bucket_id = 'annonces' and public.est_membre_bureau());
 
+drop policy if exists documents_storage_bureau on storage.objects;
 create policy documents_storage_bureau
   on storage.objects for all to authenticated
   using (bucket_id = 'documents' and public.est_membre_bureau())

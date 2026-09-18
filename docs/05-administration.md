@@ -21,6 +21,13 @@ La page ne peut rien écrire tant que la migration n'est pas appliquée.
    `supabase/migrations/20260918001000_membres_bureau.sql`.
 3. Exécuter.
 
+La migration est **rejouable** : `create table if not exists`, et un
+`drop policy if exists` devant chaque `create policy`. Si une exécution échoue
+au milieu — l'éditeur s'arrête à la première erreur —, il suffit donc de la
+relancer entièrement, sans chercher où reprendre. C'est délibéré : appliquée à
+la main, sans historique de migration, elle serait sinon dans un état que rien
+ne permettrait de rattraper.
+
 Ce que cette migration ajoute, et pourquoi :
 
 - une table `membres_bureau`, la **liste nominative** des personnes autorisées ;
