@@ -8,9 +8,11 @@
  * mêmes données et la même pastille, mais pas la même mise en page : une carte
  * de tête se lit, une carte de liste se parcourt.
  *
- * L'extrait est coupé à la fin d'un mot, et non à un nombre de caractères
- * fixe : une coupure au milieu d'un mot se lit comme une faute de frappe, et
- * c'est la première chose qu'un parent voit.
+ * L'extrait est coupé à la fin d'un mot : une coupure au milieu se lit comme une
+ * faute de frappe, et c'est la première chose qu'un parent voit. La règle et son
+ * repli — un segment sans espace plus long que 40 % de la longueur demandée
+ * n'offre aucune frontière où couper — vivent dans `src/lib/extrait.ts`, avec
+ * leur banc. Les deux cartes s'y réfèrent au lieu d'en garder une copie.
  *
  * L'IMAGE EST FACULTATIVE, ET SON ABSENCE N'EST PAS UN TROU
  * ---------------------------------------------------------
@@ -23,6 +25,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { AppText, Card, ImageDistante, LienAction, Pill } from '@/components/ui';
+import { extraire } from '@/lib/extrait';
 import { CATEGORIES_ANNONCE, adresseImage } from '@/services/annonces';
 import { useTheme } from '@/providers/theme-provider';
 import type { Annonce } from '@/types/models';
@@ -31,19 +34,6 @@ import { depuis } from '@/utils/date';
 interface AnnonceCardProps {
   readonly annonce: Annonce;
   readonly onPress: () => void;
-}
-
-/** Extrait limité à `max` caractères, coupé sur une frontière de mot. */
-export function extraire(corps: string, max = 180): string {
-  const propre = corps.replace(/\s+/g, ' ').trim();
-  if (propre.length <= max) {
-    return propre;
-  }
-
-  const coupe = propre.slice(0, max);
-  const dernierEspace = coupe.lastIndexOf(' ');
-  const base = dernierEspace > max * 0.6 ? coupe.slice(0, dernierEspace) : coupe;
-  return `${base.trimEnd()}…`;
 }
 
 export function AnnonceCard({ annonce, onPress }: AnnonceCardProps): React.JSX.Element {

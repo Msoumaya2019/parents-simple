@@ -570,6 +570,23 @@ n'est installé. Il ne se satisfait pas non plus d'un commentaire — la recherc
 porte sur la balise privée de ses commentaires, sans quoi la phrase qui _nomme_
 `aria-hidden` suffirait à la faire passer pour posée.
 
+### L'extrait d'une actualité
+
+La carte de liste coupe le corps à 180 caractères, la carte de tête à 240. La
+coupure tombe à la fin d'un mot : une coupure au milieu se lit comme une faute de
+frappe, et c'est la première chose qu'un parent voit.
+
+Un cas échappe à la règle, et l'en-tête de la carte l'avait passé sous silence :
+quand aucun espace ne tombe dans les derniers 40 % de la longueur demandée — un
+segment de plus de `max * 0.4` caractères, une adresse web recopiée dans le corps
+—, couper au dernier espace trouvé ne donnerait que quelques caractères. La coupe
+se fait alors au caractère. C'est le seul cas où l'extrait peut finir au milieu
+d'un mot.
+
+La règle vivait dans `AnnonceCard.tsx`, où aucun banc ne pouvait la charger : un
+composant qui importe React ne se charge pas sous `node --test`. Elle vit dans
+`src/lib/extrait.ts`, qui n'importe rien, tenue par `tests/extrait.test.ts`.
+
 ---
 
 ## Sécurité

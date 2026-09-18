@@ -21,7 +21,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppText, Card, ImageDistante, LienAction, Pill } from '@/components/ui';
 import { CATEGORIES_ANNONCE, adresseImage } from '@/services/annonces';
-import { extraire } from '@/components/AnnonceCard';
+import { extraire } from '@/lib/extrait';
 import { useTheme } from '@/providers/theme-provider';
 import type { Annonce } from '@/types/models';
 import { depuis } from '@/utils/date';
