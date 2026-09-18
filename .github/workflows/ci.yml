@@ -19,8 +19,11 @@
 #                  le téléphone, invisible à la compilation.
 #    typecheck     un champ renommé d'un seul côté. C'est le contrôle le plus
 #                  rentable du lot.
-#    test          la logique de dates, où un décalage d'un jour ne lève
-#                  aucune erreur et ne se voit que sur l'appareil.
+#    test          une logique qui ne lève rien : un décalage d'un jour, un
+#                  contraste sous le seuil lisible, deux listes de clés qui
+#                  divergent, un écran déclaré dans la pile et absent du
+#                  répertoire. Ni tsc ni ESLint ne regardent ces accords-là, et
+#                  l'œil les manque aussi.
 #    sql:check     une table sans RLS, ou un droit de lecture accordé par
 #                  mégarde. Ces fautes ne se voient NULLE PART ailleurs : le
 #                  schéma s'applique sans erreur et l'application fonctionne.
@@ -47,6 +50,17 @@
 #  l'application est conçue pour démarrer sans configuration, en affichant un
 #  écran qui explique ce qui manque. C'est ce qui permet à un dépôt public de
 #  vérifier son code sans clé.
+#
+#  CETTE RÈGLE VAUT AUSSI POUR LA SUITE DE TESTS, et il a fallu un rouge pour
+#  s'en souvenir. `tests/refus-de-droit.test.mjs` importe un script de contrôle,
+#  et ce script sortait en code 1 quand la configuration manquait — au niveau du
+#  module, donc à l'import, avant sa propre garde. Le banc passait donc au vert
+#  sur une machine pourvue d'un `.env.local`, et échouait ici, sur une
+#  configuration absente : précisément le mode de défaillance dont l'étape de la
+#  base réelle est écartée. Un contrôle qui exige des secrets ne doit pas se
+#  laisser atteindre par simple import. Le contrat est tenu par
+#  `tests/import-sans-configuration.test.mjs`, qui l'éprouve dans un processus
+#  enfant privé de secrets et de `.env.local`.
 # =============================================================================
 
 name: Intégration continue

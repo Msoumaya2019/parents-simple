@@ -124,12 +124,43 @@ const URL_BASE = (
 const CLE =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? envLocal.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-if (URL_BASE === '' || CLE === '') {
-  console.error('::error::Configuration absente.');
-  console.error('');
-  console.error('Renseignez EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_ANON_KEY,');
-  console.error("dans `.env.local` ou dans l'environnement. Voir `.env.example`.");
-  process.exit(1);
+/**
+ * Refuse de continuer si la configuration manque — à l'appel, jamais à l'import.
+ *
+ * POURQUOI CE CONTRÔLE EST DANS UNE FONCTION, ET NON AU NIVEAU DU MODULE
+ * ---------------------------------------------------------------------
+ * Il y était, et il a coûté un rouge en intégration continue. Ce fichier est
+ * importé par `tests/refus-de-droit.test.mjs`, qui éprouve `refusDeDroit`. Placé
+ * au niveau du module, `process.exit(1)` s'exécutait donc à l'IMPORT — c'est-à-
+ * dire AVANT la garde de fin de fichier, qui ne pouvait rien retenir. Or la
+ * suite de tests tourne sans secrets, par règle du projet : le banc sortait en
+ * code 1 sans avoir exécuté un seul de ses sept tests.
+ *
+ * Mesuré sur le flux `ci.yml`, après poussée de `e33981a` :
+ *   # ::error::Configuration absente.
+ *   # Subtest: tests/refus-de-droit.test.mjs
+ *   not ok 4 - tests/refus-de-droit.test.mjs
+ *   # tests 113 / # pass 112 / # fail 1
+ * Les comptes se réconcilient : 119 tests en local, 113 ici, l'écart étant les
+ * six autres tests de ce banc qui n'ont jamais tourné, plus le fichier lui-même
+ * compté comme un test en échec.
+ *
+ * En local, le défaut était INVISIBLE : `.env.local` existe. C'est pourquoi il
+ * est désormais tenu par `tests/import-sans-configuration.test.mjs`, qui importe
+ * ce fichier dans un processus enfant privé de secrets ET de `.env.local` — la
+ * condition de la CI, que la machine du développeur ne reproduit jamais. Un
+ * contrôle dont la défaillance est silencieuse s'éprouve, il ne se relit pas.
+ *
+ * Corollaire pour tout ce fichier : le niveau du module ne fait que DÉCLARER.
+ */
+function verifierConfiguration() {
+  if (URL_BASE === '' || CLE === '') {
+    console.error('::error::Configuration absente.');
+    console.error('');
+    console.error('Renseignez EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_ANON_KEY,');
+    console.error("dans `.env.local` ou dans l'environnement. Voir `.env.example`.");
+    process.exit(1);
+  }
 }
 
 /**
@@ -491,6 +522,8 @@ async function verifierEcritureStockageRefusee() {
 }
 
 async function principal() {
+  verifierConfiguration();
+
   console.log(`Base interrogée : ${URL_BASE}`);
   console.log('');
 
@@ -527,6 +560,13 @@ async function principal() {
  * mettrait alors à dépendre du réseau et de secrets, ce que ce projet refuse
  * partout ailleurs. Un test qui ne tourne qu'avec la base joignable ne protège
  * rien le jour où on en a besoin.
+ *
+ * CETTE GARDE NE SUFFIT PAS — ET ELLE A ÉTÉ CRUE SUFFISANTE. Elle ne retient
+ * que `principal()`. Tout ce qui s'exécute au niveau du module passe AVANT elle,
+ * et c'est exactement par là qu'un `process.exit(1)` a fait échouer
+ * l'intégration continue : voir `verifierConfiguration()`. Une garde d'import
+ * ne protège que ce qu'elle enveloppe ; elle ne dispense pas de regarder ce qui
+ * reste dehors.
  */
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await principal();

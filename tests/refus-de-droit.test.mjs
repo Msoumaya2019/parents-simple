@@ -18,7 +18,16 @@
  * surtout pas l'être.
  *
  * Ce test ne touche pas au réseau. Le fichier qu'il importe n'interroge la base
- * que s'il est lancé directement.
+ * que s'il est lancé directement — s'en tenir à cette phrase serait toutefois
+ * insuffisant, et l'intégration continue l'a montré : la garde d'import ne
+ * retient que `principal()`, tandis qu'un `process.exit(1)` resté au niveau du
+ * module s'exécute AVANT elle. Ce banc sortait donc en code 1 sans exécuter un
+ * seul de ses sept tests, et la machine du développeur ne le voyait pas, parce
+ * que `.env.local` y existe.
+ *
+ * Le contrat d'import — ne rien exécuter, ne rien écrire, ne pas exiger de
+ * configuration — est tenu par `tests/import-sans-configuration.test.mjs`, qui
+ * l'éprouve dans un processus enfant privé de secrets et de `.env.local`.
  */
 
 import assert from 'node:assert/strict';

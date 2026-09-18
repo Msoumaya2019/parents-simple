@@ -79,8 +79,14 @@ export default tseslint.config(
   },
 
   // Les fichiers de test utilisent les globales de `node:test`.
+  //
+  // Les DEUX extensions, et pas seulement `.ts` : un banc écrit en `.mjs` a
+  // besoin de `process.execPath` pour lancer un processus enfant, et sans cette
+  // ligne ESLint refuse `process` et `URL` comme non définis. Le premier banc
+  // `.mjs` du projet n'importait que `node:assert` et `node:test`, ce qui
+  // masquait le manque ; il a fallu en écrire un second pour le voir.
   {
-    files: ['**/*.test.ts'],
+    files: ['**/*.test.ts', '**/*.test.mjs'],
     languageOptions: {
       globals: { ...globals.node },
     },
