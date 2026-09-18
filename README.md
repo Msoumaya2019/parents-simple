@@ -225,12 +225,13 @@ Enchaîne, dans cet ordre :
 > `SAFE_DELETE_BULK_CONFIRM_REQUIRED`. Ce n'est pas un défaut du projet :
 > `expo export` supprime le dossier `dist/` de l'exécution précédente, et
 > l'environnement local intercepte les suppressions de plus de cinquante
-> fichiers par tour de commande. Le compte est **cumulé sur l'ensemble des
-> dossiers** supprimés pendant ce tour : `dist/` en contient une quarantaine,
-> `admin/dist/` trois, et le total dépasse le seuil. Le contournement est de
-> déplacer **les deux** plutôt que de les supprimer — `mv dist "$TEMP/fl-dist"`
-> et `mv admin/dist "$TEMP/fl-admin-dist"` — puis de relancer. Les étapes
-> précédentes, elles, ne sont pas concernées.
+> éléments par tour de commande. `dist/` peut dépasser ce seuil **à lui seul** :
+> mesuré le 18 septembre 2026, le garde-fou en a compté 67, alors que le dossier
+> portait 48 fichiers et 5 sous-dossiers. Le compte ne porte donc pas sur les
+> seuls fichiers, et l'écart n'est pas expliqué. Le contournement est de
+> déplacer **les deux** dossiers produits plutôt que de les supprimer —
+> `mv dist "$TEMP/fl-dist"` et `mv admin/dist "$TEMP/fl-admin-dist"` — puis de
+> relancer. Les étapes précédentes, elles, ne sont pas concernées.
 
 Quatre d'entre eux méritent une explication, car ils ne sont pas ordinaires :
 
@@ -411,7 +412,7 @@ src/
   config/                   Lecture de l'environnement, client Supabase
   errors/                   Traduction des erreurs en français
   hooks/                    Chargement asynchrone dérivé
-  lib/                      Identifiants d'installation, mémoire des votes
+  lib/                      Identifiants d'installation, mémoire des votes, complétude du responsable
   providers/                Thème clair/sombre
   services/                 Une fonction par requête
   theme/                    Palettes et échelles

@@ -273,6 +273,14 @@ l'importance de remplir l'objet `RESPONSABLE`, en tête de
 `app/confidentialite.tsx`, **avant toute mise à disposition** — la page affiche
 un avertissement bien visible tant que les trois valeurs manquent.
 
+La règle qui choisit entre l'avertissement et les coordonnées ne vit pas dans
+l'écran mais dans `src/lib/responsable.ts`, et
+`tests/responsable-traitement.test.ts` la tient : un banc ne peut pas charger
+l'écran, qui importe React Native. Ce banc couvre aussi la forme de l'écran,
+parce que deux défauts y sont invisibles — une condition niée, qui inverse les
+deux affichages sans changer leur ordre, et une valeur faite d'espaces, qui
+compte comme absente.
+
 ---
 
 ## Points de vigilance pour la suite

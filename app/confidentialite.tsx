@@ -24,6 +24,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { AppText, Card, Pill, Screen } from '@/components/ui';
+import { responsableIncomplet } from '@/lib/responsable';
 import { useTheme } from '@/providers/theme-provider';
 
 /**
@@ -43,9 +44,15 @@ const RESPONSABLE = {
   courriel: '',
 } as const;
 
-/** Vrai tant qu'il manque au moins une des trois valeurs. */
-const RESPONSABLE_INCOMPLET =
-  RESPONSABLE.nom === '' || RESPONSABLE.siege === '' || RESPONSABLE.courriel === '';
+/**
+ * Vrai tant qu'il manque au moins une des trois valeurs.
+ *
+ * La règle est dans `@/lib/responsable`, et non recopiée ici : c'est ce qui la
+ * rend éprouvable — un banc ne peut pas charger cet écran, qui importe React
+ * Native — et c'est ce qui empêche une seconde version de la même question
+ * d'apparaître ailleurs dans le code.
+ */
+const RESPONSABLE_INCOMPLET = responsableIncomplet(RESPONSABLE);
 
 interface SectionProps {
   readonly titre: string;
