@@ -120,6 +120,19 @@ Ou, sans la ligne de commande : coller **chaque fichier** de
 `supabase/migrations/`, **dans l'ordre de leur nom**, dans l'éditeur SQL du
 tableau de bord, et exécuter chacun avant de passer au suivant.
 
+Troisième voie, sans projet lié : l'outil du dépôt, qui appelle le **même point
+d'entrée** que l'éditeur SQL, en **un seul lot** — pas d'historique de migration,
+donc rien qui risque de rejouer un fichier antérieur.
+
+```bash
+npx supabase login   # une seule fois : dépose un jeton dans ~/.supabase/
+node scripts/appliquer-migration.mjs supabase/migrations/<fichier>.sql
+```
+
+Les chemins se lisent **depuis la racine du dépôt**. L'outil refuse de partir sans
+jeton, ou avec un jeton dont la forme n'est pas `sbp_…`, et n'affiche jamais le
+jeton lui-même.
+
 > **Il ne suffit pas de coller le premier.** `20260917120000_init.sql` crée les
 > tables ; les fichiers suivants ajoutent des colonnes que l'application lit —
 > la catégorie et l'image d'une actualité, par exemple. Une base arrêtée au

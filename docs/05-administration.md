@@ -21,6 +21,24 @@ La page ne peut rien écrire tant que la migration n'est pas appliquée.
    `supabase/migrations/20260918001000_membres_bureau.sql`.
 3. Exécuter.
 
+Ou, en ligne de commande, par le **même point d'entrée** que l'éditeur SQL — donc
+sans projet lié, et sans `db push` qui comparerait au dépôt distant :
+
+```bash
+npx supabase login   # une seule fois : dépose un jeton dans ~/.supabase/
+node scripts/appliquer-migration.mjs supabase/migrations/20260918001000_membres_bureau.sql
+```
+
+Les chemins se lisent **depuis la racine du dépôt**. L'outil n'écrit aucun jeton :
+il le lit de `SUPABASE_ACCESS_TOKEN` ou du fichier déposé par `npx supabase login`,
+n'affiche que sa longueur, et refuse de partir si sa forme n'est pas `sbp_…`. Il lit
+la référence du projet dans `.env.local`, jamais en dur.
+
+Dans les deux cas, ce qui prouve que la migration est appliquée n'est pas le
+`200` de l'éditeur — qui répond aussi pour un lot vide — mais les deux contrôles
+qui interrogent la base réelle : `npm run securite:api` puis
+`npm run verifier:requetes`.
+
 La migration est **rejouable** : `create table if not exists`, et un
 `drop policy if exists` devant chaque `create policy`. Si une exécution échoue
 au milieu — l'éditeur s'arrête à la première erreur —, il suffit donc de la
