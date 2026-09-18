@@ -201,7 +201,7 @@ Enchaîne, dans cet ordre :
 | `npm run lint`            | Un crochet conditionnel : plantage sur le téléphone      |
 | `npm run typecheck`       | Un champ renommé d'un seul côté                          |
 | `npm test`                | La logique de dates, où un jour de décalage ne lève rien |
-| `npm run sql:check`       | Une table sans RLS, ou une lecture accordée par mégarde  |
+| `npm run sql:check`       | Une table sans RLS, ou une écriture ouverte à tous       |
 | `npm run admin:check`     | Une colonne, une borne ou une énumération nommée de      |
 |                           | travers dans la page d'administration                    |
 | `npm run export:android`  | Un module qui ne se résout pas dans le paquet            |
@@ -228,9 +228,23 @@ Quatre d'entre eux méritent une explication, car ils ne sont pas ordinaires :
   tables sensibles — `messages`, `sondage_votes` et `membres_bureau` — restent
   fermées, et qu'**aucune politique d'écriture ne vise le rôle anonyme**. Il
   refuse aussi une politique sans clause `to`, qui vaut PUBLIC et ouvrirait donc
-  la table à tout le monde sans que rien ne le laisse voir à la lecture. Ces
-  fautes ne se voient **nulle part ailleurs** : le schéma s'applique sans erreur
-  et l'application fonctionne parfaitement.
+  la table à tout le monde sans que rien ne le laisse voir à la lecture.
+
+  Il exige enfin que **chaque politique d'écriture visant `authenticated`** porte
+  la condition `public.est_membre_bureau()`, dans `using` **et** dans
+  `with check`. C'est la règle qui compte depuis que le bureau publie depuis une
+  page web : Supabase ouvre l'inscription publique par défaut, donc
+  `authenticated` s'obtient en s'inscrivant, et le rôle ne dit pas qui est la
+  personne. `securite:api` ne peut pas la voir — il interroge la base avec la clé
+  publique — si bien que ce contrôle-ci est le seul à tenir la condition
+  d'appartenance. Les deux clauses sont exigées séparément parce que `with check`
+  ne s'applique ni à `delete` ni au choix des lignes visibles : un `using (true)`
+  gardé seulement par son `with check` laisserait tout inscrit supprimer n'importe
+  quelle annonce.
+
+  Ces fautes ne se voient **nulle part ailleurs** : le schéma s'applique sans
+  erreur et l'application fonctionne parfaitement.
+
 - **`admin:check`** confronte la page d'administration au schéma : chaque table
   qu'elle appelle, chaque colonne de ses `select`, chaque borne de ses champs,
   chaque valeur de ses listes déroulantes, chaque compartiment de stockage. Le

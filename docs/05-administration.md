@@ -215,6 +215,16 @@ d'un APK par n'importe qui, et vérifie que :
   compartiments de stockage ;
 - `est_membre_bureau` et `ajouter_membre_bureau` ne sont pas exposées.
 
+**Ce qu'il ne peut pas voir, et qui compte désormais.** Il se sert de la clé
+publique, donc il n'est jamais une personne connectée : une politique d'écriture
+visant `authenticated` lui est **invisible**. Or c'est par là que passe le risque
+depuis que cette page existe — Supabase ouvre l'inscription publique par défaut,
+si bien que `authenticated` s'obtient en s'inscrivant, et le rôle ne dit pas qui
+est la personne. La condition d'appartenance portée par chaque politique
+d'écriture est donc tenue par `npm run sql:check`, qui lit les politiques une par
+une. Les deux contrôles sont complémentaires, et aucun ne remplace l'autre : un
+vert de celui-ci ne dit rien de celles-là.
+
 C'est le contrôle à relancer après toute modification des politiques, et il
 tourne dans les trois flux d'intégration continue.
 

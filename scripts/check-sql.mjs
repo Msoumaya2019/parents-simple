@@ -76,6 +76,52 @@ function verifier(condition, description) {
   }
 }
 
+/**
+ * Le contenu d'une parenthèse, parenthèses imbriquées comprises.
+ *
+ * POURQUOI CETTE FONCTION EXISTE — ELLE A ÉTÉ PAYÉE
+ * -------------------------------------------------
+ * Un motif comme `/using\s*\([^;]*public\.est_membre_bureau\(\)/` paraît
+ * suffire, et ne suffit pas : `[^;]*` peut courir AU-DELÀ de la parenthèse
+ * fermante de `using`, jusqu'à celle de `with check`. Mesuré, sur cette forme :
+ *
+ *   for all to authenticated
+ *     using (true)
+ *     with check (public.est_membre_bureau())
+ *
+ * Le contrôle cherchant la condition après `using` la trouvait dans `with
+ * check`, et déclarait la politique gardée. Or elle ne l'est pas : `with check`
+ * ne s'applique NI à `delete` NI au choix des lignes visibles, si bien que tout
+ * inscrit pouvait SUPPRIMER n'importe quelle annonce. Le contrôle rendait un
+ * vert sur une application ouverte en suppression.
+ *
+ * Il faut donc délimiter la clause par appariement des parenthèses, jamais par
+ * un intervalle libre.
+ */
+function contenuParenthese(texte, indexOuvrante) {
+  if (texte[indexOuvrante] !== '(') return null;
+
+  let profondeur = 0;
+  for (let i = indexOuvrante; i < texte.length; i += 1) {
+    if (texte[i] === '(') profondeur += 1;
+    else if (texte[i] === ')') {
+      profondeur -= 1;
+      if (profondeur === 0) return texte.slice(indexOuvrante + 1, i);
+    }
+  }
+
+  //  Parenthèse jamais refermée : dire « absent » vaut mieux que rendre un
+  //  contenu tronqué, qui ferait passer un contrôle sur un fichier mal formé.
+  return null;
+}
+
+/** Le contenu de la clause `motif` — par exemple `/using\s*\(/` — ou `null`. */
+function contenuDeClause(texte, motif) {
+  const trouve = motif.exec(texte);
+  if (trouve === null) return null;
+  return contenuParenthese(texte, trouve.index + trouve[0].length - 1);
+}
+
 // ---------------------------------------------------------------------------
 //  Lecture des migrations
 // ---------------------------------------------------------------------------
@@ -382,6 +428,35 @@ if (fs.existsSync(ECRAN_CONTACT)) {
 //  Le contrôle lit aussi les politiques du stockage, que la section 2 ne voit
 //  pas : elle ne cherche que `on public.<table>`, et `storage.objects` n'en
 //  est pas une.
+//
+//  REFUSER `anon` NE SUFFIT PLUS — ET C'EST LE CONTRÔLE QUI MANQUAIT
+//  ----------------------------------------------------------------
+//  Depuis que la migration des membres du bureau ouvre l'écriture à
+//  `authenticated`, la question n'est plus seulement « qui n'a pas de compte ».
+//  Supabase autorise l'inscription publique par défaut : n'importe qui peut
+//  créer un compte par `/auth/v1/signup`, obtenir un jeton `authenticated`, et
+//  écrire. Le rôle ne dit pas QUI est la personne — seul le fait de figurer
+//  dans `membres_bureau` le dit.
+//
+//  La condition `public.est_membre_bureau()` portée par chaque politique
+//  d'écriture est donc LE verrou. Or rien ne la vérifiait :
+//  `scripts/verifier-securite-api.mjs` interroge la base avec la clé ANON, si
+//  bien qu'une politique visant `authenticated` sans condition lui est
+//  INVISIBLE. Il passerait au vert sur une application que tout inscrit peut
+//  modifier, et aucun autre contrôle ne regarde les politiques. La garantie
+//  reposait donc sur la relecture — ce que ce projet refuse partout ailleurs.
+//
+//  La forme fautive est plausible : c'est la tentation que l'en-tête de la
+//  migration nomme lui-même.
+//
+//    create policy annonces_bureau on public.annonces for all to authenticated
+//      using (true) with check (true);   -- la 17e politique, et tout est ouvert
+//
+//  Les DEUX clauses sont exigées : `using` filtre les lignes visibles et
+//  modifiables, `with check` filtre ce qui peut être écrit, et n'en garder
+//  qu'une laisserait passer la moitié du geste. La condition est exigée
+//  POSITIVE : `not public.est_membre_bureau()` la contiendrait aussi, et
+//  refuserait exactement les personnes qu'on veut autoriser.
 {
   const ECRITURE = new Set(['all', 'insert', 'update', 'delete']);
   const motifPolitique =
@@ -389,6 +464,7 @@ if (fs.existsSync(ECRAN_CONTACT)) {
 
   let politique;
   let rencontrees = 0;
+  let pourAuthenticated = 0;
 
   while ((politique = motifPolitique.exec(normalise)) !== null) {
     rencontrees += 1;
@@ -405,6 +481,35 @@ if (fs.existsSync(ECRAN_CONTACT)) {
         !/\banon\b/.test(roles[1]),
         `La politique « ${nom} » n'accorde pas « ${commande} » au rôle anonyme sur « ${table} ».`,
       );
+
+      //  Une écriture ouverte aux personnes connectées doit dire LESQUELLES :
+      //  `authenticated` s'obtient en s'inscrivant, et l'inscription est
+      //  ouverte par défaut.
+      if (/\bauthenticated\b/.test(roles[1])) {
+        pourAuthenticated += 1;
+
+        //  Les clauses sont délimitées par appariement des parenthèses, jamais
+        //  par un intervalle libre — sans quoi la condition trouvée dans
+        //  `with check` validerait un `using` ouvert. Voir `contenuParenthese`.
+        const contenuUsing = contenuDeClause(reste, /using\s*\(/);
+        const contenuCheck = contenuDeClause(reste, /with\s+check\s*\(/);
+
+        const gardeDansUsing =
+          contenuUsing !== null && contenuUsing.includes('public.est_membre_bureau()');
+        const gardeDansCheck =
+          contenuCheck !== null && contenuCheck.includes('public.est_membre_bureau()');
+
+        verifier(
+          gardeDansUsing && gardeDansCheck,
+          `La politique « ${nom} » conditionne l'écriture sur « ${table} » à l'appartenance au bureau, dans « using » ET dans « with check ».`,
+        );
+        verifier(
+          ![contenuUsing, contenuCheck].some(
+            (contenu) => contenu !== null && /not\s+public\.est_membre_bureau\(\)/.test(contenu),
+          ),
+          `La politique « ${nom} » ne nie pas l'appartenance au bureau au lieu de l'exiger.`,
+        );
+      }
     }
   }
 
@@ -414,6 +519,14 @@ if (fs.existsSync(ECRAN_CONTACT)) {
   verifier(
     rencontrees >= politiques.length && rencontrees > 0,
     `Toutes les politiques du schéma ont été relues (${rencontrees} trouvée(s)).`,
+  );
+
+  //  Second garde-fou, pour la règle d'appartenance seule : sans politique
+  //  d'écriture visant `authenticated`, elle s'appliquerait zéro fois et
+  //  passerait au vert sans avoir rien regardé.
+  verifier(
+    pourAuthenticated > 0,
+    `Les politiques d'écriture visant « authenticated » ont été relues (${pourAuthenticated} trouvée(s)).`,
   );
 }
 

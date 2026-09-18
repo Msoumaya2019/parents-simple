@@ -23,15 +23,23 @@ délibéré : un endroit à relire, un endroit à vérifier automatiquement.
 
 ## Les trois niveaux d'accès
 
-| Rôle            | Qui                               | Ce qu'il peut faire                           |
-| --------------- | --------------------------------- | --------------------------------------------- |
-| `anon`          | Un parent, depuis son téléphone   | Lire le contenu, déposer un message, voter    |
-| `authenticated` | **Personne**                      | Rien : cette application n'a pas de connexion |
-| `service_role`  | Le bureau, via le tableau de bord | Tout — contourne la RLS                       |
+| Rôle            | Qui                                   | Ce qu'il peut faire                        |
+| --------------- | ------------------------------------- | ------------------------------------------ |
+| `anon`          | Un parent, depuis son téléphone       | Lire le contenu, déposer un message, voter |
+| `authenticated` | Une personne **nommée dans la liste** | Publier — et rien de plus                  |
+| `service_role`  | Le bureau, via le tableau de bord     | Tout — contourne la RLS                    |
 
-`authenticated` ne reçoit **aucun privilège**, et c'est vérifié par
-`npm run sql:check`. Le rôle reste donc inopérant même si quelqu'un obtenait un
-jeton de session par un autre moyen.
+`authenticated` ne reçoit des privilèges que depuis la migration des membres du
+bureau, et **le rôle seul n'ouvre rien** : chaque politique d'écriture qui le vise
+est conditionnée à `public.est_membre_bureau()`. C'est indispensable, parce que
+Supabase autorise l'inscription publique par défaut — n'importe qui peut obtenir
+un jeton `authenticated` en créant un compte. Le rôle dit qu'on a un compte, pas
+qui l'on est.
+
+Deux contrôles tiennent cette condition : `npm run sql:check` lit chaque politique
+d'écriture visant `authenticated` et exige la condition dans `using` **et** dans
+`with check` ; `npm run securite:api` éprouve, avec la clé publique, qu'aucune
+écriture ne passe.
 
 ---
 
@@ -44,13 +52,15 @@ jeton de session par un autre moyen.
 
 Aucune politique d'écriture n'est déclarée pour le rôle `anon`. Ce n'est pas un
 oubli : c'est ce qui empêche quiconque a installé l'application de publier une
-fausse information au nom de l'école. Le bureau publie avec la clé
-`service_role`, qui ignore la RLS.
+fausse information au nom de l'école. Le bureau publie soit avec la clé
+`service_role` depuis le tableau de bord, soit depuis la page d'administration,
+avec sa propre session.
 
 > Si quelqu'un ajoute un jour un `for insert to anon` « pour simplifier », il
-> ouvre la publication à tout porteur de la clé publique — c'est-à-dire à tout
-> le monde. `npm run sql:check` ne détecte pas ce cas précis : c'est le seul
-> endroit du schéma qui repose sur la vigilance.
+> ouvre la publication à tout porteur de la clé publique — c'est-à-dire à tout le
+> monde. **Mesuré : `npm run sql:check` le refuse**, comme il refuse une politique
+> sans clause `to`, puisque l'absence de clause vaut PUBLIC — et `anon` en fait
+> partie.
 
 ### `sondage_votes` et `messages` : aucune politique, et c'est le cœur du sujet
 
@@ -134,15 +144,34 @@ Deux contrôles, à deux niveaux. Aucun ne remplace l'autre.
 - `messages` ou `sondage_votes` reçoit une politique, ou un droit de lecture ;
 - une table de contenu n'est pas lisible, ou n'a pas de politique ;
 - une fonction exposée n'est pas `security definer`, ou ne fixe pas son
-  `search_path`.
+  `search_path` ;
+- une politique d'écriture vise `anon`, ou **omet sa clause `to`** — qui vaut
+  PUBLIC, et `anon` en fait partie ;
+- une politique d'écriture vise `authenticated` sans conditionner l'accès à
+  `public.est_membre_bureau()`, **dans `using` et dans `with check`**.
+
+La dernière règle est la plus récente, et elle mérite une phrase de plus. Elle
+existe parce que `npm run securite:api` interroge la base avec la clé **anon** :
+une politique visant `authenticated` lui est invisible, si bien qu'une
+application que tout inscrit pourrait modifier lui aurait donné un vert. Les deux
+clauses sont exigées séparément parce que `with check` ne s'applique **ni à
+`delete`, ni au choix des lignes visibles** : un `using (true)` accompagné d'un
+`with check` gardé laisserait tout inscrit supprimer n'importe quelle annonce.
+Cette forme-là a été écrite, et le contrôle ne la voyait pas — c'est la
+falsification qui l'a montré, pas la relecture.
 
 Ces fautes ont une particularité : **elles ne se voient nulle part ailleurs**.
 Le schéma s'applique sans erreur, l'application fonctionne, et le défaut reste
 invisible jusqu'à ce que quelqu'un l'exploite.
 
-Le contrôle a été éprouvé : retirer une ligne `enable row level security`, ou
-accorder par mégarde un `grant select` sur `messages`, le fait échouer avec le
-message correspondant.
+Le contrôle a été éprouvé : retirer une ligne `enable row level security`,
+accorder par mégarde un `grant select` sur `messages`, ajouter une politique
+d'écriture pour `anon`, en ajouter une sans clause `to`, ou en ajouter une pour
+`authenticated` sans la condition d'appartenance — chaque fois il échoue, avec le
+message correspondant. Une variante a aussi été éprouvée pour le contrôle
+lui-même : neutraliser la règle — le contrôle ne reconnaît plus le rôle — fait
+échouer son garde-fou d'extraction, au lieu de la laisser passer au vert sans rien
+regarder.
 
 ### 2. La base, interrogée — `npm run securite:api`
 
@@ -264,10 +293,19 @@ un avertissement bien visible tant que les trois valeurs manquent.
    protection réelle contre un message malveillant isolé est humaine : le bureau
    lit ce qui arrive, et peut le supprimer.
 
-5. **`npm run sql:check` ne détecte pas une politique d'écriture ajoutée par
-   erreur** sur une table de contenu. C'est le seul angle mort connu du
-   contrôle, et la raison pour laquelle toute modification de
-   `supabase/migrations/` mérite une relecture humaine.
+5. **`npm run sql:check` ne détecte pas un `grant` d'écriture accordé à `anon`
+   sans politique correspondante.** Mesuré, et sans danger aujourd'hui : la RLS
+   est active et aucune politique ne vise `anon`, donc le privilège ne donne accès
+   à rien. Mais une ligne accordée « au cas où » deviendrait exploitable le jour
+   où une politique apparaîtrait — et c'est le genre de ligne qu'on ne relit pas.
+   Toute modification de `supabase/migrations/` mérite donc une relecture humaine.
+
+   **Ce qui n'est plus un angle mort** : une politique d'écriture ajoutée par
+   erreur sur une table de contenu est refusée, qu'elle vise `anon`, qu'elle
+   omette sa clause `to`, ou qu'elle vise `authenticated` sans la condition
+   d'appartenance. Les trois formes ont été éprouvées, et la troisième était le
+   trou le plus dangereux des trois : `npm run securite:api` ne pouvait pas la
+   voir, puisqu'elle ne concerne pas la clé publique.
 
 6. **`npm audit` signale quatorze vulnérabilités modérées qui ne concernent pas
    l'application livrée.** Deux avis distincts, tous deux dans la chaîne
