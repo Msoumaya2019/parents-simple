@@ -8,7 +8,7 @@
  * locale française est complète, partielle, ou absente — auquel cas la date
  * s'affiche en anglais sans que rien ne le signale. Sur une application dont
  * tous les utilisateurs sont francophones, ce risque n'a aucune contrepartie :
- * les noms de jours et de mois tiennent en quatre lignes de tableaux.
+ * les noms de jours et de mois tiennent en trois tableaux écrits à la main.
  *
  * POURQUOI DEUX FONCTIONS DE LECTURE DE DATE
  * ------------------------------------------
