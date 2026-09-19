@@ -63,8 +63,16 @@ export default function DocumentsScreen(): React.JSX.Element {
       // de la base — mesuré : statut 400, `"code":"NoSuchKey"` — que le parent
       // ne peut pas interpréter.
       //
-      // La requête ne demande qu'un octet : le fichier n'est pas téléchargé
-      // deux fois, et la réponse porte le corps qui distingue les causes.
+      // La requête ne demande qu'un octet, et la réponse porte le corps qui
+      // distingue les causes.
+      //
+      // L'ÉCONOMIE N'EST PAS MESURÉE, ET CE N'EST PAS UN OUBLI : aucun fichier
+      // réel n'est déposé dans le compartiment — `supabase/exemple-contenu.sql`
+      // le dit de ses deux documents. Toute sonde y répond donc `NoSuchKey`, et
+      // comparer deux échecs identiques ne dit rien de `Range`. L'en-tête ne
+      // peut pas nuire pour autant : un service qui l'ignore rend le fichier
+      // entier, c'est-à-dire ce qu'il aurait rendu sans lui. À reprendre quand
+      // un document aura été publié pour de vrai.
       const reponse = await fetch(adresse, { headers: { Range: 'bytes=0-0' } });
 
       if (!reponse.ok) {
