@@ -75,6 +75,16 @@ Attendu : **28/28**. Avant la migration, ce contrôle dit 27/28 et nomme
 qu'elle n'existe pas. C'est le seul contrôle qui distingue « fermé » de
 « absent », et c'est pour cela qu'il faut le lancer après chaque migration.
 
+> **Un 27/28 ne dit pas toujours la même chose.** Tant que la table manque, la
+> ligne en échec est `membres_bureau : lecture refusée`. Une fois la migration
+> appliquée, elle doit disparaître. Si une **autre** ligne reste rouge, le défaut
+> est dans le contrôle, pas dans la base — mesuré : `est_membre_bureau` répondait
+> **401** là où le contrôle attendait 404, parce que PostgREST met au cache toute
+> fonction accordée à au moins un rôle et refuse ensuite l'appelant. Le 404 n'est
+> rendu que pour une fonction que **personne** ne peut exécuter. C'est corrigé, et
+> `tests/accord-fonctions-exposees.test.mjs` tient l'accord entre les deux listes
+> du contrôle et les `revoke` / `grant` des migrations.
+
 > **Tant que la migration n'est pas appliquée, les compilations s'arrêtent.**
 > Ce contrôle tourne dans les trois flux de travail, dont les deux qui
 > produisent l'IPA et l'APK, **avant** de compiler. Une compilation lancée avant

@@ -190,18 +190,19 @@ dire de l'état réel.
 embarquée dans l'application**, et vérifie ce qu'un inconnu qui l'extrait d'un
 APK peut réellement faire :
 
-| Vérification                               | Attendu                        |
-| ------------------------------------------ | ------------------------------ |
-| Les six tables de contenu                  | lisibles (HTTP 200)            |
-| `messages`, `sondage_votes`                | **refusées** (HTTP 401 ou 403) |
-| Insertion, modification, suppression       | refusées partout               |
-| `sondage_resultats`                        | répond                         |
-| `voter` avec un sondage inexistant         | refuse                         |
-| `envoyer_message` avec un sujet vide       | refuse, sans rien insérer      |
-| `set_updated_at`, `verifier_vote_coherent` | non exposées                   |
-| La clé utilisée                            | est la clé publique            |
+| Vérification                                                        | Attendu                        |
+| ------------------------------------------------------------------- | ------------------------------ |
+| Les six tables de contenu                                           | lisibles (HTTP 200)            |
+| `messages`, `sondage_votes`                                         | **refusées** (HTTP 401 ou 403) |
+| Insertion, modification, suppression                                | refusées partout               |
+| `sondage_resultats`                                                 | répond                         |
+| `voter` avec un sondage inexistant                                  | refuse                         |
+| `envoyer_message` avec un sujet vide                                | refuse, sans rien insérer      |
+| `set_updated_at`, `verifier_vote_coherent`, `ajouter_membre_bureau` | absentes du cache (HTTP 404)   |
+| `est_membre_bureau`                                                 | **refusée** (HTTP 401 ou 403)  |
+| La clé utilisée                                                     | est la clé publique            |
 
-Trois points de conception :
+Quatre points de conception :
 
 - **Une table fermée doit répondre « interdit », pas « liste vide ».** Un 200
   avec `[]` signifierait que le privilège de lecture a été accordé et que seule
@@ -219,11 +220,30 @@ Trois points de conception :
   accepté est `sb_publishable_` **exactement**, jamais `sb_` : `sb_secret_…`
   porte le même début, et l'accepter reviendrait à déclarer « cette clé n'est
   pas une clé de service » sur la clé de service elle-même.
+- **Une fonction d'administration se refuse de deux façons, et il faut savoir
+  laquelle.** `est_membre_bureau` est accordée au seul rôle `authenticated` —
+  les politiques d'écriture l'appellent, et une politique s'évalue avec les
+  droits de qui interroge. Elle est donc **présente au cache de schéma** de
+  PostgREST, qui est bâti sur l'ensemble des rôles : la clé publique la trouve et
+  se la voit refuser, HTTP 401. Les trois autres ne sont accordées à aucun rôle,
+  ne sont donc pas au cache, et répondent 404. Ce contrôle attendait 404 pour les
+  quatre, en écrivant que PostgREST « ne trouve pas » une fonction non accordée :
+  c'était faux, et le contrôle était **vert pour rien** — le 404 arrivait parce
+  que la fonction n'existait pas encore. Le 401 est une meilleure preuve : il
+  n'est pas ambigu, il établit à la fois que la fonction existe et que la clé
+  publique ne peut pas l'appeler.
 
 Le contrôle a lui aussi été éprouvé, contre un serveur simulant PostgREST : base
 correcte → vert ; `messages` lisible, écritures autorisées, fonction exposée
 manquante, sujet vide accepté, clé `service_role` fournie → échec dans les cinq
 cas, avec le message attendu.
+
+Ce montage n'est **pas conservé dans le dépôt** : il ne se rejoue pas tout seul,
+et il n'a pas été refait depuis. Ce qui est tenu en permanence est ailleurs, et ne
+demande ni base ni serveur — `tests/accord-fonctions-exposees.test.mjs` éprouve le
+verdict rendu pour chaque statut, et confronte les deux listes du contrôle aux
+`revoke` et `grant` des migrations ainsi qu'aux fonctions que l'application et
+l'administration appellent réellement.
 
 Le contrôle de forme de la clé a été éprouvé séparément, sur cinq formes.
 `sb_publishable_…` et un JWT au rôle `anon` franchissent cette étape ; `sb_secret_…`,

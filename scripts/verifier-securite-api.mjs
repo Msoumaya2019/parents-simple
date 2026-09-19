@@ -74,6 +74,35 @@ const TABLES_LISIBLES = [
 const TABLES_FERMEES = ['messages', 'sondage_votes', 'membres_bureau'];
 
 /**
+ * Les fonctions accordées à AUCUN rôle : PostgREST ne les met pas au cache et
+ * répond 404 avec la clé publique.
+ *
+ * `ajouter_membre_bureau` en fait partie pour une raison de fond : un membre du
+ * bureau ne doit pas pouvoir s'ajouter de collègue. Le seul chemin d'ajout est
+ * l'éditeur SQL, c'est-à-dire quelqu'un qui a déjà les pleins droits.
+ */
+export const FONCTIONS_SANS_AUCUN_DROIT = [
+  'set_updated_at',
+  'verifier_vote_coherent',
+  'ajouter_membre_bureau',
+];
+
+/**
+ * Les fonctions accordées au seul rôle `authenticated` : la clé publique les
+ * trouve — elles sont au cache — et se les voit refuser, HTTP 401.
+ *
+ * `est_membre_bureau` DOIT être exécutable par `authenticated` : les politiques
+ * d'écriture l'appellent, et une politique s'évalue avec les droits de qui
+ * interroge. La retirer fermerait l'administration ; l'accorder à `anon`
+ * l'ouvrirait à quiconque s'inscrit. Il ne reste que le refus.
+ *
+ * Ces deux listes sont lues par `tests/accord-fonctions-exposees.test.mjs`, qui
+ * les confronte aux `revoke` et `grant` des migrations : une fonction ajoutée
+ * sans contrôle, ou accordée au mauvais rôle, fait échouer le banc.
+ */
+export const FONCTIONS_REFUSEES_A_LA_CLE_PUBLIQUE = ['est_membre_bureau'];
+
+/**
  * Un PNG d'un pixel, en hexadécimal.
  *
  * Le stockage refuse d'abord sur le type MIME : un témoin `text/plain` reçoit
@@ -411,39 +440,82 @@ async function verifierFonctions() {
     journaliser('envoyer_message : refuse un sujet vide', false, cause.message);
   }
 
-  // 4. Aucune fonction d'administration ne doit être exposée à la clé publique.
+  // 4. Aucune fonction d'administration ne doit être exécutable avec la clé
+  //    publique — mais elles ne se refusent pas toutes de la même façon.
   //
-  //    `est_membre_bureau` est accordée au rôle `authenticated`, jamais à
-  //    `anon` : avec la clé publique, PostgREST ne la trouve pas et répond 404.
-  //    `ajouter_membre_bureau` n'est accordée à personne — un membre du bureau
-  //    ne doit pas pouvoir s'ajouter de collègue.
+  //    DEUX FAMILLES, DEUX RÉPONSES
+  //    ----------------------------
+  //    `est_membre_bureau` est accordée au seul rôle `authenticated` : avec la
+  //    clé publique, PostgREST la trouve et répond **401**, « vous n'avez pas le
+  //    droit ». Les trois autres ne sont accordées à aucun rôle : PostgREST ne
+  //    les met pas au cache et répond **404**.
   //
-  //    LE 404 EST AMBIGU, ET C'EST LA TABLE QUI LÈVE LE DOUTE
-  //    ------------------------------------------------------
-  //    PostgREST répond 404 aussi bien pour « cette fonction existe mais ne
-  //    vous est pas accordée » que pour « cette fonction n'existe pas ». Un 404
-  //    sur `est_membre_bureau` passerait donc pour un succès alors qu'il
-  //    signalerait une migration non appliquée. Ce qui rend l'interprétation
-  //    sûre est ailleurs, et dans cet ordre : la lecture de `membres_bureau` a
-  //    exigé un refus 401/403, ce qui prouve que la migration EST appliquée.
-  //    Un 404 ici veut donc bien dire « non exposée ».
-  const fonctionsInterdites = [
-    'set_updated_at',
-    'verifier_vote_coherent',
-    'est_membre_bureau',
-    'ajouter_membre_bureau',
-  ];
-  for (const fonction of fonctionsInterdites) {
+  //    CE CONTRÔLE ATTENDAIT 404 POUR LES QUATRE, ET C'ÉTAIT FAUX
+  //    ----------------------------------------------------------
+  //    Il affirmait que PostgREST « ne trouve pas » `est_membre_bureau` parce
+  //    qu'elle n'est accordée qu'à `authenticated`. Mesuré : non. Le cache de
+  //    schéma de PostgREST est bâti sur l'ensemble des rôles ; une fonction
+  //    accordée à un seul rôle y est donc PRÉSENTE, et `anon` reçoit 401.
+  //
+  //    La conséquence était pire que l'erreur d'explication : ce contrôle était
+  //    VERT POUR RIEN. Tant que la migration n'était pas appliquée,
+  //    `est_membre_bureau` n'existait pas, le 404 attendu arrivait — pour la
+  //    mauvaise raison. Le jour où la fonction a existé, le contrôle est devenu
+  //    rouge en accusant le seul état correct.
+  //
+  //    LE 401 EST UNE MEILLEURE PREUVE QUE LE 404
+  //    ------------------------------------------
+  //    Il n'est pas ambigu : un 404 ne dit pas si la fonction est absente ou
+  //    non accordée, alors qu'un 401 prouve les deux choses qu'on veut savoir —
+  //    elle existe, et la clé publique ne peut pas l'appeler. Le 404 des trois
+  //    autres reste, lui, levé par la lecture de `membres_bureau` juste avant :
+  //    un refus 401/403 y prouve que la migration EST appliquée.
+  const interrogerFonction = async (fonction, attendu, intitule) => {
     try {
       const { statut } = await appeler(`/rest/v1/rpc/${fonction}`, {
         method: 'POST',
         body: JSON.stringify({}),
       });
-      journaliser(`${fonction} : non exposée`, statut === 404, `HTTP ${statut}`);
+      const verdict = verdictSurFonctionAdministrative(statut);
+      journaliser(`${fonction} : ${intitule}`, verdict === attendu, `HTTP ${statut} — ${verdict}`);
     } catch (cause) {
-      journaliser(`${fonction} : non exposée`, false, cause.message);
+      journaliser(`${fonction} : ${intitule}`, false, cause.message);
     }
-  }
+  };
+
+  for (const fonction of FONCTIONS_SANS_AUCUN_DROIT)
+    await interrogerFonction(fonction, 'absente', 'absente du cache');
+
+  for (const fonction of FONCTIONS_REFUSEES_A_LA_CLE_PUBLIQUE)
+    await interrogerFonction(fonction, 'refusee', 'refusée à la clé publique');
+}
+
+/**
+ * Ce qu'un statut dit d'une fonction d'administration interrogée avec la clé
+ * publique.
+ *
+ * Rend `'absente'` pour 404, `'refusee'` pour 401 ou 403, et `'appelable'` pour
+ * tout le reste — 200 en tête, qui est le seul verdict vraiment dangereux : la
+ * fonction répond à n'importe qui.
+ *
+ * POURQUOI CE VERDICT EST UNE FONCTION, ET NON UNE COMPARAISON EN LIGNE
+ * --------------------------------------------------------------------
+ * La comparaison en ligne a déjà menti une fois, et sans bruit. Le contrôle
+ * attendait `statut === 404` pour `est_membre_bureau`, en écrivant que PostgREST
+ * « ne la trouve pas ». C'était vert tant que la fonction n'existait pas — le
+ * 404 arrivait pour la mauvaise raison — et rouge dès qu'elle a existé, parce
+ * que le cache de schéma est bâti sur l'ensemble des rôles : une fonction
+ * accordée au seul `authenticated` y est présente, et `anon` reçoit 401.
+ *
+ * Une règle qui décide doit pouvoir être éprouvée. Une comparaison écrite dans
+ * une boucle ne s'éprouve pas ; `tests/accord-fonctions-exposees.test.mjs`
+ * éprouve celle-ci, et confronte en plus les deux listes ci-dessus aux `revoke`
+ * et `grant` des migrations.
+ */
+export function verdictSurFonctionAdministrative(statut) {
+  if (statut === 404) return 'absente';
+  if (statut === 401 || statut === 403) return 'refusee';
+  return 'appelable';
 }
 
 /**
