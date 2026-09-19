@@ -9,12 +9,15 @@
  * une couleur, et rien d'autre.
  *
  * Le défaut est réel, et pas seulement théorique. `@expo/vector-icons` rend
- * chaque glyphe dans un `<Text>` — `create-icon-set.js` fait
+ * chaque glyphe dans un `<Text>` — `build/vendor/react-native-vector-icons/
+ * lib/create-icon-set.js` fait
  * `const { name, size, color, style, children, ...props } = this.props` puis
- * `<Text selectable={false} {...props}>` — et `Libraries/Text/Text.js` rend un
- * `Text` accessible par défaut sur iOS (`ios: accessible !== false`). Un glyphe
- * est un caractère de la zone privée Unicode : VoiceOver s'y arrête et
- * l'annonce, à côté du libellé qui dit déjà tout.
+ * `<Text selectable={false} {...props}>`, et c'est ce fichier-là qu'il faut
+ * citer : `build/createIconSet.js`, au nom voisin, ne fait que transmettre ses
+ * props à ce composant — et `Libraries/Text/Text.js` rend un `Text` accessible
+ * par défaut sur iOS (`ios: accessible !== false`). Un glyphe est un caractère
+ * de la zone privée Unicode : VoiceOver s'y arrête et l'annonce, à côté du
+ * libellé qui dit déjà tout.
  *
  * CE QUE LE BANC TIENT
  * --------------------
@@ -25,13 +28,20 @@
  * `aria-hidden` est le bon levier, et il est vérifié plutôt que supposé. Dans
  * les paquets installés :
  *
- *   - `Libraries/Components/View/View.js` — `ariaHidden` devient
+ *   - `Libraries/Text/Text.js` — `ariaHidden` devient
  *     `accessibilityElementsHidden`, et quand il vaut `true`,
  *     `importantForAccessibility = 'no-hide-descendants'` ;
- *   - `Libraries/Text/Text.js` — la même traduction, aux mêmes conditions.
+ *   - `Libraries/Components/View/View.js` — la même traduction, aux mêmes
+ *     conditions.
  *
- * Le premier fichier suffit à `Ionicons`, qui rend un `Text` et lui transmet
- * ses props ; le second est la raison pour laquelle le masquage est nécessaire.
+ * C'est le PREMIER qui porte la prop pour une icône, et non le second :
+ * `Ionicons` rend un `Text`, donc c'est `Text.js` qui la traite. `View.js` ne
+ * s'applique qu'aux conteneurs — le citer ici revenait à attribuer à une `View`
+ * une traduction qui n'a jamais lieu pour un glyphe.
+ *
+ * Ces deux traductions sont RELUES dans le paquet installé par le dernier
+ * `describe`, et non recopiées : une phrase de commentaire sur un paquet
+ * installé se périme au premier changement de version, en silence.
  *
  * DEUX SITUATIONS, UNE SEULE RÈGLE
  * --------------------------------
@@ -257,5 +267,145 @@ describe('Le banc ne se satisfait pas d’un commentaire', () => {
     };
 
     assert.equal(estMasquee(desactivee), false, 'aria-hidden={false} ne masque rien');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// La traduction de `aria-hidden`, relue dans le paquet installé
+// ---------------------------------------------------------------------------
+// Ce qui suit ne sert qu'au dernier `describe`, et c'est pour cela qu'il est
+// écrit ici plutôt qu'en tête : ces chemins ne valent que pour lui.
+
+const TEXT_JS = join(RACINE, 'node_modules', 'react-native', 'Libraries', 'Text', 'Text.js');
+const VIEW_JS = join(
+  RACINE,
+  'node_modules',
+  'react-native',
+  'Libraries',
+  'Components',
+  'View',
+  'View.js',
+);
+const CREATE_ICON_SET = join(
+  RACINE,
+  'node_modules',
+  '@expo',
+  'vector-icons',
+  'build',
+  'vendor',
+  'react-native-vector-icons',
+  'lib',
+  'create-icon-set.js',
+);
+
+/**
+ * Le corps d'un `if`, de son `{` à son `}` apparié.
+ *
+ * Les accolades sont COMPTÉES, et non coupées par une expression non
+ * gourmande : le corps qui nous intéresse en contient un autre, et une coupure
+ * au premier `}` s'arrêterait sur l'`if` imbriqué, avant la ligne cherchée. Le
+ * banc deviendrait alors rouge sur un paquet inchangé.
+ */
+function corpsDuIf(source: string, debut: string): string | null {
+  const ouverture = source.indexOf(debut);
+  if (ouverture === -1) {
+    return null;
+  }
+
+  const accolade = source.indexOf('{', ouverture);
+  if (accolade === -1) {
+    return null;
+  }
+
+  let profondeur = 0;
+  for (let index = accolade; index < source.length; index += 1) {
+    const caractere = source[index];
+    if (caractere === '{') {
+      profondeur += 1;
+    } else if (caractere === '}') {
+      profondeur -= 1;
+      if (profondeur === 0) {
+        return source.slice(accolade, index + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Vrai si ce source porte les DEUX lignes de la traduction, dans le même `if`.
+ *
+ * La condition porte sur le corps, et non sur la présence des deux lignes
+ * quelque part dans le fichier : deux lignes éloignées l'une de l'autre ne
+ * forment pas une traduction, et un contrôle qui les chercherait séparément
+ * serait vert sur un fichier où elles ont cessé d'aller ensemble.
+ */
+function traduitAriaHidden(source: string): boolean {
+  const corps = corpsDuIf(source, 'if (ariaHidden !== undefined)');
+  if (corps === null) {
+    return false;
+  }
+  return (
+    /processedProps\.accessibilityElementsHidden = ariaHidden;/.test(corps) &&
+    /importantForAccessibility = 'no-hide-descendants';/.test(corps)
+  );
+}
+
+describe('La traduction de `aria-hidden` est relue, jamais recopiée', () => {
+  it('`Text.js` la porte — c’est lui qui traite la prop d’une icône', () => {
+    assert.ok(
+      traduitAriaHidden(readFileSync(TEXT_JS, 'utf8')),
+      '`Libraries/Text/Text.js` ne traduit plus `aria-hidden` comme l’en-tête l’affirme',
+    );
+  });
+
+  it('`View.js` porte la même traduction, pour les conteneurs', () => {
+    assert.ok(
+      traduitAriaHidden(readFileSync(VIEW_JS, 'utf8')),
+      '`Libraries/Components/View/View.js` ne traduit plus `aria-hidden` comme l’en-tête l’affirme',
+    );
+  });
+
+  it('un glyphe est rendu dans un `Text`, et non dans une `View`', () => {
+    const source = readFileSync(CREATE_ICON_SET, 'utf8');
+    assert.match(
+      source,
+      /const \{ name, size, color, style, children, \.\.\.props \} = this\.props;/,
+      'le composant d’icône ne sépare plus les props du glyphe : le masquage ne les atteindrait plus',
+    );
+    assert.match(
+      source,
+      /<Text selectable=\{false\} \{\.\.\.props\}>/,
+      'le composant d’icône ne rend plus un `Text` : `Text.js` n’est plus le fichier qui compte',
+    );
+  });
+
+  it('un bloc qui ne pose qu’une des deux lignes est refusé', () => {
+    const incomplet =
+      'if (ariaHidden !== undefined) {\n' +
+      '  processedProps.accessibilityElementsHidden = ariaHidden;\n' +
+      '}\n';
+    assert.equal(traduitAriaHidden(incomplet), false, 'une traduction incomplète ne compte pas');
+  });
+
+  it('le corps d’un `if` est compté, et non coupé au premier `}`', () => {
+    // La ligne cherchée est APRÈS un `if` imbriqué. Une extraction non
+    // gourmande s'arrêterait au `}` de cet `if` et la manquerait — le banc
+    // deviendrait rouge sur un paquet inchangé, ce qui est pire que pas de
+    // banc du tout.
+    const faux =
+      'if (ariaHidden !== undefined) {\n' +
+      '  avant();\n' +
+      '  if (imbrique) {\n' +
+      '    dedans();\n' +
+      '  }\n' +
+      '  apres();\n' +
+      '}\n';
+
+    const corps = corpsDuIf(faux, 'if (ariaHidden !== undefined)');
+    assert.ok(corps !== null, 'l’extraction n’a rien trouvé');
+    assert.match(corps, /dedans\(\);/, 'l’extraction n’a pas pris tout le corps');
+    assert.match(corps, /apres\(\);/, 'l’extraction s’est arrêtée à l’`if` imbriqué');
   });
 });

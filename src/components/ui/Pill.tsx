@@ -83,9 +83,11 @@ export function Pill({ libelle, ton = 'neutre', icone }: PillProps): React.JSX.E
           // Le glyphe est un caractère : sans ce masquage, un lecteur d'écran
           // l'annonce comme un élément de plus, à côté du libellé qui dit déjà
           // tout. `aria-hidden` est traduit par React Native en
-          // `accessibilityElementsHidden` sur iOS et en
-          // `importantForAccessibility` sur Android — vérifié dans
-          // `Libraries/Components/View/View.js` de la version installée.
+          // `accessibilityElementsHidden`, et en `importantForAccessibility`
+          // valant `no-hide-descendants` — vérifié dans
+          // `Libraries/Text/Text.js` de la version installée. C'est bien ce
+          // fichier-là qu'il faut lire : `Ionicons` rend un `Text`, et non une
+          // `View` — voir `create-icon-set.js`, qui écrit `<Text {...props}>`.
           aria-hidden
         />
       )}
