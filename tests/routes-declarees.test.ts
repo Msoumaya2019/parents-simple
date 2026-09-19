@@ -3,16 +3,18 @@
  *
  * POURQUOI CE FICHIER EXISTE
  * --------------------------
- * `app/_layout.tsx` le dit lui-même : « Un écran absent de cette liste s'affiche
- * SANS en-tête, donc sans flèche de retour […] C'est le piège le plus courant de
- * ce routeur, et il ne produit aucune erreur à la compilation. »
+ * `app/_layout.tsx` le dit lui-même : « Ce qui manque, c'est le TITRE. Sans
+ * déclaration, c'est le nom de la route qui se lit dans l'en-tête : “ annonce/[id] ”,
+ * “ documents ”, “ +not-found ”. […] L'écart ne produit aucune erreur à la
+ * compilation. »
  *
  * Deux sources portent la même vérité sans pouvoir se lire : les fichiers posés
  * dans `app/`, que le routeur découvre, et les noms écrits à la main dans les
  * deux `_layout.tsx`. Un fichier ajouté sans déclaration — ou une déclaration
  * laissée en place après un renommage — ne casse rien : ni `tsc`, ni ESLint, ni
- * l'export. Le défaut n'apparaît que sur le téléphone, sous la forme d'un écran
- * sans retour ou d'un onglet sans libellé.
+ * l'export. Le défaut n'apparaît que sur le téléphone, sous la forme d'un
+ * en-tête qui porte le nom de la route, d'un en-tête qu'un écran ne voulait pas,
+ * ou d'un onglet sans libellé.
  *
  * Ce que ce fichier vérifie est donc exactement ce qu'un essai manuel éprouve
  * en premier : que chaque bouton mène quelque part, et que chaque destination
@@ -22,8 +24,9 @@
  * ----------------------------------------------
  * Un écart se lit dans les deux sens, et les deux sont des défauts :
  *
- *   - un fichier SANS déclaration — l'écran existe mais s'ouvre sans en-tête,
- *     ou l'onglet s'affiche avec l'icône de repli et le nom de sa route ;
+ *   - un fichier SANS déclaration — l'écran existe, mais rien ne décide de son
+ *     en-tête : il porte le nom de sa route, ou garde un en-tête alors que son
+ *     `Screen` réserve déjà la marge haute ;
  *   - une déclaration SANS fichier — la route est morte, et un lien qui la vise
  *     ne mène nulle part.
  *
@@ -41,8 +44,17 @@ import { describe, it } from 'node:test';
 /** Extensions qu'expo-router reconnaît comme une route. */
 const EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'];
 
-/** Fichiers de `app/` qui ne sont pas des routes. */
-const NON_ROUTES = new Set(['_layout.tsx', '+not-found.tsx']);
+/**
+ * Fichiers de `app/` qui ne sont pas des routes.
+ *
+ * `+not-found.tsx` n'y figure plus : `getRoutes` l'enregistre comme une route
+ * ordinaire — `{ route: '+not-found', dynamic: [{ name: '+not-found', deep:
+ * true, notFound: true }] }` — et l'exclure d'ici la laissait hors de tout
+ * contrôle. Elle était la seule à n'être déclarée nulle part, et elle en portait
+ * les deux conséquences : un en-tête titré « +not-found », et la marge haute de
+ * son `Screen` cumulée avec celle de cet en-tête.
+ */
+const NON_ROUTES = new Set(['_layout.tsx']);
 
 /**
  * Les cinq onglets, dans l'ordre de la maquette. L'ordre compte : il décide de
