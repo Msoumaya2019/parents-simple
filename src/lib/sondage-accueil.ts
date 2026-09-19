@@ -46,12 +46,13 @@
  *
  * CE QUE CE MODULE IMPORTE
  * ------------------------
- * Rien à l'exécution, hors `@/utils/date`, qui n'importe rien non plus. C'est
- * ce qui permet à `tests/sondage-accueil.test.ts` de le charger sans React ni
- * React Native.
+ * Rien à l'exécution, hors `@/utils/date` et `@/lib/choix-retenu`, qui
+ * n'importent rien non plus. C'est ce qui permet à
+ * `tests/sondage-accueil.test.ts` de le charger sans React ni React Native.
  */
 
 import type { Sondage } from '@/types/models';
+import { aRepondu } from '@/lib/choix-retenu';
 import { sondageFerme } from '@/utils/date';
 
 /** Ce que l'accueil montre, et les mots qui vont avec. */
@@ -126,16 +127,16 @@ export function invitationAccueil(
     return null;
   }
 
-  // `!== undefined` et non une valeur de vérité : `CHOIX_INCONNU` est la chaîne
-  // vide, qui est fausse en JavaScript. Un test de vérité ferait réapparaître
-  // l'invitation à répondre sur un sondage déjà voté dont la base n'a pas dit
-  // le choix.
-  const aRepondu = votes[sondage.id] !== undefined;
+  // La question « a-t-il répondu ? » a une seule réponse dans tout le projet,
+  // et elle vit dans `@/lib/choix-retenu` : `CHOIX_INCONNU` est la chaîne vide,
+  // qu'un test de vérité prendrait pour « rien de connu ». L'onglet Plus appelle
+  // la même règle, ce qui interdit aux deux écrans de se contredire.
+  const repondu = aRepondu(votes, sondage.id);
 
   return {
     sondage,
-    accroche: aRepondu ? ACCROCHE_DEJA_REPONDU : ACCROCHE_A_REPONDRE,
-    action: aRepondu ? ACTION_CONSULTER : ACTION_REPONDRE,
-    indication: aRepondu ? INDICATION_CONSULTER : INDICATION_REPONDRE,
+    accroche: repondu ? ACCROCHE_DEJA_REPONDU : ACCROCHE_A_REPONDRE,
+    action: repondu ? ACTION_CONSULTER : ACTION_REPONDRE,
+    indication: repondu ? INDICATION_CONSULTER : INDICATION_REPONDRE,
   };
 }

@@ -33,6 +33,7 @@ import { SondageCard } from '@/components/SondageCard';
 import { AppText, Card, ErrorNotice, LoadingView, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRafraichissement } from '@/hooks/useRafraichissement';
+import { choixRetenuPour } from '@/lib/choix-retenu';
 import { enregistrerVote, lireVotesLocaux, voteARetenir } from '@/lib/votes-locaux';
 import { useTheme } from '@/providers/theme-provider';
 import { listerDocuments } from '@/services/documents';
@@ -145,7 +146,7 @@ export default function PlusScreen(): React.JSX.Element {
                 <SondageCard
                   key={sondage.id}
                   sondage={sondage}
-                  choixRetenu={votes[sondage.id] ?? null}
+                  choixRetenu={choixRetenuPour(votes, sondage.id)}
                   onVoter={voter}
                 />
               ))}
