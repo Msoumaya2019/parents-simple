@@ -3,12 +3,12 @@
  *
  * POURQUOI CE BANC EXISTE
  * -----------------------
- * Les quatre écrans d'administration affichaient `<p>Chargement…</p>` dès que
- * la liste était absente — c'est-à-dire dans DEUX cas : la demande est en vol,
- * ou elle a échoué. Dans le second, l'écran annonçait un chargement qui
- * n'arriverait jamais, pendant que le message d'erreur s'affichait dans
- * l'encadré du formulaire, juste au-dessus : deux phrases contradictoires sur
- * le même écran, et celle de la carte était fausse.
+ * Les écrans d'administration — quatre à l'époque — affichaient tous
+ * `<p>Chargement…</p>` dès que la liste était absente, c'est-à-dire dans DEUX
+ * cas : la demande est en vol, ou elle a échoué. Dans le second, l'écran
+ * annonçait un chargement qui n'arriverait jamais, pendant que le message
+ * d'erreur s'affichait dans l'encadré du formulaire, juste au-dessus : deux
+ * phrases contradictoires sur le même écran, et celle de la carte était fausse.
  *
  * Le défaut n'a été trouvé par aucun contrôle existant, et pour une raison qui
  * se dit en une phrase : **aucun ne regardait le texte.** `admin:check` relit
@@ -25,7 +25,7 @@
  *    l'empaqueteur exige et ce que Node refuse pour un import relatif —, donc
  *    un banc ne peut pas le charger. Mesuré, pas supposé.
  *
- * 2. **L'accord avec les quatre écrans.** Une fonction juste que plus personne
+ * 2. **L'accord avec les écrans.** Une fonction juste que plus personne
  *    n'appelle ne vaut rien, et le défaut était recopié quatre fois : c'est
  *    précisément ce qui l'avait rendu invisible. Le banc relit donc les écrans
  *    et exige que chacun appelle la règle.
@@ -40,10 +40,10 @@
  *     sur une liste de noms. Un cinquième écran ajouté demain est donc couvert
  *     sans qu'on touche à ce fichier. Une liste de noms, elle, ne verrait que
  *     ce qu'elle nomme.
- *   - la liste des quatre écrans à liste est CLOSE, et une prémisse vérifie
- *     qu'elle n'est pas périmée : chacun des quatre montre bien une carte de
- *     liste. Sans cette prémisse, un écran renommé laisserait le banc passer en
- *     ne surveillant plus rien.
+ *   - la liste des écrans à liste est CLOSE, et une prémisse vérifie qu'elle
+ *     n'est pas périmée : chacun montre bien une carte de liste. Sans cette
+ *     prémisse, un écran renommé laisserait le banc passer en ne surveillant
+ *     plus rien.
  *
  * CE QU'IL NE PROUVE PAS
  * ----------------------
@@ -80,7 +80,7 @@ const TEXTE_EN_VOL = 'Chargement…';
  * prémisse plus bas exige que chacun montre bien une carte, faute de quoi cette
  * liste pourrait se périmer en silence.
  */
-const ECRANS_A_LISTE = ['Agenda', 'Annonces', 'Cantine', 'Documents'] as const;
+const ECRANS_A_LISTE = ['Agenda', 'Annonces', 'Cantine', 'Documents', 'Messages'] as const;
 
 /** Les écrans qui n'ont pas de liste — cités pour que leur absence soit un fait. */
 const SANS_LISTE = ['Connexion'] as const;
@@ -147,7 +147,7 @@ describe('accord avec les écrans — aucun n’écrit ce texte en clair', () =>
     );
   });
 
-  it('fait appeler la règle par chacun des quatre écrans à liste', () => {
+  it('fait appeler la règle par chaque écran à liste', () => {
     for (const nom of ECRANS_A_LISTE) {
       const source = sourceDe(nom);
 

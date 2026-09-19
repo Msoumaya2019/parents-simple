@@ -55,8 +55,13 @@ import {
   COLONNES_DOCUMENT,
   COLONNES_EVENEMENT,
   COLONNES_MENU,
+  COLONNES_MESSAGE,
 } from '../admin/src/lib/contenu.ts';
-import { CATEGORIES_ANNONCE, CATEGORIES_DOCUMENT } from '../admin/src/lib/types.ts';
+import {
+  CATEGORIES_ANNONCE,
+  CATEGORIES_DOCUMENT,
+  CATEGORIES_MESSAGE,
+} from '../admin/src/lib/types.ts';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const RACINE = path.resolve(ICI, '..');
@@ -70,20 +75,49 @@ const SOURCE_ADMIN = path.join(RACINE, 'admin', 'src');
  * relie le nom d'une table à celui d'une constante, sinon une convention de
  * nommage. Le contrôle vérifie donc en plus que cette liste est COMPLÈTE, en
  * relevant les appels `client.from('…')` du fichier de requêtes : une
- * cinquième table ajoutée à la page fait échouer le contrôle tant qu'elle n'est
+ * sixième table ajoutée à la page fait échouer le contrôle tant qu'elle n'est
  * pas déclarée ici.
+ *
+ * `bornesHorsPage` — LA SEULE EXCEPTION, ET ELLE EST NOMMÉE
+ * --------------------------------------------------------
+ * La règle 4 exige que TOUTE contrainte bornée d'une table écrite ici soit
+ * tenue par une entrée de `BORNES`. Cette règle suppose que la page saisit les
+ * champs qu'elle borne, ce qui est vrai des quatre premières tables et faux de
+ * `messages` : la page y lit et coche « traité », elle n'écrit ni le sujet ni
+ * le corps — c'est `envoyer_message()`, appelée par le téléphone du parent, qui
+ * les dépose.
+ *
+ * Les deux bornes de `messages` (`messages_sujet_valide`, 160, et
+ * `messages_corps_valide`, 4000) ne sont donc pas sans être tenues : elles le
+ * sont par l'écran de contact, du côté mobile, et `scripts/check-sql.mjs` les y
+ * confronte. Les redemander ici ferait échouer le contrôle sur du code juste,
+ * et ajouter deux entrées à `BORNES` qu'aucun écran de cette page n'emploie
+ * ferait échouer la règle 6 pour la même raison.
+ *
+ * Le champ est une CHAÎNE, et non un booléen : une exception qu'on peut poser
+ * d'un mot ne se distingue pas d'un oubli, alors qu'une phrase oblige à dire
+ * laquelle. La règle 4 rend en plus le nombre de tables exemptées, pour qu'une
+ * exemption ne puisse pas passer inaperçue dans un total.
  */
 const TABLES_ECRITES = [
   { table: 'annonces', constante: 'COLONNES_ANNONCE', colonnes: COLONNES_ANNONCE },
   { table: 'cantine_menus', constante: 'COLONNES_MENU', colonnes: COLONNES_MENU },
   { table: 'agenda_events', constante: 'COLONNES_EVENEMENT', colonnes: COLONNES_EVENEMENT },
   { table: 'documents', constante: 'COLONNES_DOCUMENT', colonnes: COLONNES_DOCUMENT },
+  {
+    table: 'messages',
+    constante: 'COLONNES_MESSAGE',
+    colonnes: COLONNES_MESSAGE,
+    bornesHorsPage:
+      'le sujet et le corps sont écrits par les parents, via `envoyer_message()` ; leurs deux bornes sont tenues par `app/(tabs)/contact.tsx`, où `scripts/check-sql.mjs` les confronte.',
+  },
 ];
 
 /** Les énumérations que la page propose, et le type énuméré qui les définit. */
 const ENUMERATIONS = [
   { type: 'annonce_categorie', liste: CATEGORIES_ANNONCE, constante: 'CATEGORIES_ANNONCE' },
   { type: 'document_categorie', liste: CATEGORIES_DOCUMENT, constante: 'CATEGORIES_DOCUMENT' },
+  { type: 'message_categorie', liste: CATEGORIES_MESSAGE, constante: 'CATEGORIES_MESSAGE' },
 ];
 
 const problemes = [];
@@ -376,12 +410,16 @@ const ecransLus = ecrans.map((nom) => ({
 //  avec l'apparence d'une protection. Chaque lecteur doit donc dire ce qu'il a
 //  trouvé, et le nombre attendu est nommé.
 
+//  La liste est DÉDUITE de `TABLES_ECRITES` au lieu d'être recopiée. Recopiée,
+//  elle aurait été juste le jour où elle a été écrite et fausse le jour où une
+//  table s'ajoute — c'est-à-dire exactement le moment où ce garde-fou sert. Ce
+//  qu'il prouve reste non circulaire : `tables` vient des migrations, et
+//  `TABLES_ECRITES` du code de la page.
+const tablesDeclarees = TABLES_ECRITES.map(({ table }) => table);
+
 verifier(
-  tables.has('annonces') &&
-    tables.has('cantine_menus') &&
-    tables.has('agenda_events') &&
-    tables.has('documents'),
-  `Les quatre tables écrites par la page ont été relues dans les migrations (${tables.size} table(s) au total).`,
+  tablesDeclarees.length >= 5 && tablesDeclarees.every((table) => tables.has(table)),
+  `Les ${tablesDeclarees.length} tables écrites par la page ont été relues dans les migrations (${tables.size} table(s) au total).`,
 );
 
 for (const { table, constante } of TABLES_ECRITES) {
@@ -521,16 +559,35 @@ for (const [cle, borne] of Object.entries(BORNES)) {
 //  ignorée, et l'écran laisserait saisir au-delà. C'est le défaut le plus
 //  silencieux de la famille, et c'est celui-ci qui le ferme.
 //
-//  La règle porte sur les contraintes écrites `between … and …` des quatre
-//  tables écrites par la page. Les autres formes — `unique`, `>=`, un
+//  La règle porte sur les contraintes écrites `between … and …` des tables
+//  écrites ET SAISIES par la page. Les autres formes — `unique`, `>=`, un
 //  `coalesce … <> ''` — ne sont pas des bornes de longueur et ne sont pas
 //  concernées.
+//
+//  UNE EXEMPTION N'EST LÉGITIME QUE SI QUELQU'UN D'AUTRE TIENT LA BORNE
+//  -------------------------------------------------------------------
+//  `messages` est exemptée parce que la page n'écrit ni le sujet ni le corps :
+//  les borner ici n'aurait aucun sens. Mais une exemption non vérifiée serait
+//  le trou par lequel le défaut rentre — il suffirait d'écrire `bornesHorsPage`
+//  sur une table pour que ses bornes cessent d'être regardées par personne.
+//
+//  Le contrôle exige donc que CHAQUE contrainte bornée d'une table exemptée
+//  soit nommée comme VALEUR dans `scripts/check-sql.mjs`, qui confronte les
+//  bornes de `messages` à l'écran de contact. Les commentaires de ce fichier
+//  sont retirés avant la recherche : sans cela, la phrase qui explique la règle
+//  citerait les noms de contraintes, et le contrôle se contenterait de la prose
+//  qu'il est censé vérifier.
 
 {
+  const tablesSaisies = TABLES_ECRITES.filter(({ bornesHorsPage }) => bornesHorsPage === undefined);
+  const tablesExemptees = TABLES_ECRITES.filter(
+    ({ bornesHorsPage }) => bornesHorsPage !== undefined,
+  );
+
   const bornesEnBase = new Set();
 
   for (const [nom, contrainte] of contraintes) {
-    const ecrite = TABLES_ECRITES.some(({ table }) => table === contrainte.table);
+    const ecrite = tablesSaisies.some(({ table }) => table === contrainte.table);
     if (ecrite && contrainte.max !== null) {
       bornesEnBase.add(nom);
     }
@@ -538,7 +595,7 @@ for (const [cle, borne] of Object.entries(BORNES)) {
 
   verifier(
     bornesEnBase.size > 0,
-    `Les contraintes bornées des quatre tables ont été relues (${bornesEnBase.size} : ${[...bornesEnBase].sort().join(', ')}).`,
+    `Les contraintes bornées des tables écrites et saisies ont été relues (${bornesEnBase.size} : ${[...bornesEnBase].sort().join(', ')}).`,
   );
 
   const manquantes = [...bornesEnBase].filter((nom) => !contraintesTenues.has(nom)).sort();
@@ -546,12 +603,54 @@ for (const [cle, borne] of Object.entries(BORNES)) {
 
   verifier(
     manquantes.length === 0,
-    `Toute contrainte bornée des quatre tables est tenue par une borne (à ajouter à BORNES : ${manquantes.length === 0 ? 'aucune' : manquantes.join(', ')}).`,
+    `Toute contrainte bornée des tables saisies est tenue par une borne (à ajouter à BORNES : ${manquantes.length === 0 ? 'aucune' : manquantes.join(', ')}).`,
   );
 
   verifier(
     surnumeraires.length === 0,
-    `Toute borne de BORNES vise une contrainte bornée d'une table écrite (hors sujet : ${surnumeraires.length === 0 ? 'aucune' : surnumeraires.join(', ')}).`,
+    `Toute borne de BORNES vise une contrainte bornée d'une table saisie (hors sujet : ${surnumeraires.length === 0 ? 'aucune' : surnumeraires.join(', ')}).`,
+  );
+
+  //  Les contraintes bornées des tables exemptées, et rien d'autre : la règle
+  //  porte sur elles nommément, pas sur la table entière.
+  const contraintesExemptees = [...contraintes]
+    .filter(
+      ([, contrainte]) =>
+        contrainte.max !== null && tablesExemptees.some(({ table }) => table === contrainte.table),
+    )
+    .map(([nom]) => nom)
+    .sort();
+
+  const SOURCE_CHECK_SQL = path.join(RACINE, 'scripts', 'check-sql.mjs');
+  const sourceCheckSql = fs.existsSync(SOURCE_CHECK_SQL)
+    ? fs.readFileSync(SOURCE_CHECK_SQL, 'utf8')
+    : '';
+
+  const checkSqlSansCommentaires = sourceCheckSql
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^[ \t]*\/\/.*$/gm, '');
+
+  //  Garde-fou du lecteur : un fichier vide, un chemin déplacé ou un retrait de
+  //  commentaires trop gourmand feraient passer la règle suivante en ne
+  //  cherchant dans rien.
+  verifier(
+    checkSqlSansCommentaires.includes('ECRAN_CONTACT'),
+    `Le contrôle du schéma a été relu hors commentaires (${checkSqlSansCommentaires.length} caractère(s) retenu(s)), pour y chercher qui tient les bornes exemptées.`,
+  );
+
+  const sansTeneur = contraintesExemptees.filter((nom) => !checkSqlSansCommentaires.includes(nom));
+
+  verifier(
+    sansTeneur.length === 0,
+    `Toute contrainte bornée d'une table exemptée de bornes est tenue ailleurs — nommée comme valeur dans « scripts/check-sql.mjs » (non tenues : ${sansTeneur.length === 0 ? 'aucune' : sansTeneur.join(', ')}).`,
+  );
+
+  verifier(
+    tablesExemptees.every(
+      ({ bornesHorsPage }) =>
+        typeof bornesHorsPage === 'string' && bornesHorsPage.trim().length > 0,
+    ),
+    `Chaque table exemptée de bornes dit pourquoi : ${tablesExemptees.map(({ table, bornesHorsPage }) => `« ${table} » — ${bornesHorsPage ?? 'AUCUN MOTIF'}`).join(' ; ')}.`,
   );
 }
 

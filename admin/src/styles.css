@@ -286,3 +286,91 @@ body {
   max-width: 420px;
   margin: 12vh auto 0;
 }
+
+/*
+ * Les messages des parents.
+ *
+ * Une classe de liste à part, et non `.liste` : celle-ci dispose ses lignes en
+ * `flex` avec `space-between`, ce qui convient à « un titre, deux boutons » et
+ * pas du tout à un message — sujet, texte, pied. Forcer `.liste` aurait demandé
+ * de défaire sa mise en page dans chaque enfant.
+ */
+
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.messages > li {
+  border-top: 1px solid var(--bordure);
+  padding: 16px 0;
+}
+
+.messages > li:first-child {
+  border-top: none;
+}
+
+.message-entete {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.message-sujet {
+  font-weight: 600;
+}
+
+/*
+ * `pre-wrap` conserve les retours à la ligne ET la coupure des mots trop
+ * longs. Sans lui, un message écrit en trois paragraphes s'affiche en un seul
+ * pavé : le parent a mis une forme dans ce qu'il a écrit, et cette forme porte
+ * du sens — une liste, une adresse, une date sur sa propre ligne.
+ */
+.message-corps {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 8px 0 12px;
+}
+
+.message-pied {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.message-pied .champ {
+  margin-bottom: 0;
+}
+
+.message-sans-reponse {
+  color: var(--encre-douce);
+  font-size: 13px;
+  max-width: 60ch;
+}
+
+/*
+ * Un message traité reste visible — il porte la trace de ce qui a été fait, et
+ * le bureau peut avoir à le relire. Il est seulement atténué, pour que l'œil
+ * aille d'abord à ceux qui restent.
+ */
+.messages > li.traite .message-sujet {
+  font-weight: 500;
+  color: var(--encre-douce);
+}
+
+.messages > li.traite .message-corps {
+  color: var(--encre-douce);
+}
+
+.compteur {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+

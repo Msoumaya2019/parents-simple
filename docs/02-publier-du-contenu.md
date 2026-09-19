@@ -7,10 +7,11 @@ Il n'y a pas d'interface d'administration à apprendre : chaque table correspond
 > **Une autre façon de publier existe désormais.** Le dépôt contient une page
 > d'administration, dans `admin/`, qui donne des formulaires pour les annonces,
 > les menus de cantine, l'agenda et les documents — avec l'envoi des images et
-> des fichiers. Elle s'installe une fois, et son mode d'emploi est dans
+> des fichiers — et un onglet pour **lire les messages des parents**. Elle
+> s'installe une fois, et son mode d'emploi est dans
 > [`05-administration.md`](05-administration.md). Ce document-ci reste exact, et
-> reste utile : c'est la voie directe, sans rien à déployer, et la seule qui
-> donne accès aux messages des parents.
+> reste utile : c'est la voie directe, sans rien à déployer, et la **seule qui
+> permette de supprimer** un message ou de publier un sondage.
 
 > **L'adresse du tableau de bord** — le projet s'appelle `parents-simple-cli` :
 > <https://supabase.com/dashboard/project/toksjxrrgvgovbolcjvr>
@@ -34,16 +35,17 @@ Il n'y a pas d'interface d'administration à apprendre : chaque table correspond
 
 ## En un coup d'œil
 
-| Ce que vous voulez publier             | Où le faire                                     | Section                               |
-| -------------------------------------- | ----------------------------------------------- | ------------------------------------- |
-| Un article, une information            | Table `annonces`                                | Actualités                            |
-| Une photo sur un article               | Storage, compartiment `annonces`                | L'illustration                        |
-| Un document à télécharger              | Storage `documents`, **puis** table `documents` | Documents                             |
-| La photo de l'école, en tête d'accueil | `assets/banniere-ecole.jpg`, puis recompiler    | README, « Personnaliser la bannière » |
-| Un menu de cantine                     | Table `cantine_menus`                           | Menus de cantine                      |
-| Une date à retenir                     | Table `agenda_events`                           | Agenda                                |
-| Un sondage                             | Tables `sondages` et `sondage_choix`            | Sondages                              |
-| Lire les messages reçus                | Table `messages`                                | Lire les messages                     |
+| Ce que vous voulez publier             | Où le faire                                            | Section                               |
+| -------------------------------------- | ------------------------------------------------------ | ------------------------------------- |
+| Un article, une information            | Table `annonces`                                       | Actualités                            |
+| Une photo sur un article               | Storage, compartiment `annonces`                       | L'illustration                        |
+| Un document à télécharger              | Storage `documents`, **puis** table `documents`        | Documents                             |
+| La photo de l'école, en tête d'accueil | `assets/banniere-ecole.jpg`, puis recompiler           | README, « Personnaliser la bannière » |
+| Un menu de cantine                     | Table `cantine_menus`                                  | Menus de cantine                      |
+| Une date à retenir                     | Table `agenda_events`                                  | Agenda                                |
+| Un sondage                             | Tables `sondages` et `sondage_choix`                   | Sondages                              |
+| Lire les messages reçus                | Table `messages`, **ou** l'onglet Messages de `admin/` | Lire les messages                     |
+| Supprimer un message traité            | Table `messages`                                       | Lire les messages                     |
 
 Deux règles valent pour tout ce qui suit :
 
@@ -355,37 +357,51 @@ le résultat n'a pas de portée au point qu'il faille se protéger d'un adversai
 
 ## Lire les messages — table `messages`
 
-Onglet **Contact**. Les messages arrivent dans la table `messages`, **que
-personne ne peut lire depuis l'application** — c'est ce qui garantit qu'un
-parent ne peut pas lire ce qu'un autre a écrit.
+Onglet **Contact**. Les messages arrivent dans la table `messages`, **que la clé
+publique ne peut pas lire** — c'est ce qui garantit qu'un parent ne peut pas lire
+ce qu'un autre a écrit.
+
+**Deux façons de les lire, et il faut choisir la bonne.**
+
+| Voie                            | Ce qu'elle demande                           | Ce qu'elle permet               |
+| ------------------------------- | -------------------------------------------- | ------------------------------- |
+| Onglet **Messages** de `admin/` | Un compte du bureau                          | Lire, et marquer « traité »     |
+| Table Editor → table `messages` | Un **compte ayant accès au projet Supabase** | Lire, marquer, **et supprimer** |
+
+La page d'administration est la voie normale, et son mode d'emploi est dans
+[`05-administration.md`](05-administration.md). Elle demande une migration
+supplémentaire, appliquée à la main, qui ouvre au bureau la seule lecture — la
+clé publique, elle, ne lit toujours rien.
+
+> **Ce que le Table Editor demande, et pourquoi il faut le savoir.** Ouvrir le
+> Table Editor suppose un **compte Supabase ayant accès au projet** — ce n'est pas
+> le compte du bureau utilisé pour la page d'administration. La différence de
+> portée est considérable : qui peut ouvrir le Table Editor peut aussi modifier
+> le schéma, lire toutes les autres tables et changer les politiques.
+>
+> C'est pourquoi la page a été écrite : lire un message de parent ne devrait pas
+> coûter les clés du projet. Le Table Editor reste utile pour ce que la page ne
+> fait **pas** — supprimer un message.
 
 Table Editor → table `messages`, trier sur `created_at` décroissant.
 
-> **Ce que cet accès demande, et pourquoi il faut le savoir.** Ouvrir le Table
-> Editor suppose un **compte Supabase ayant accès au projet** — ce n'est pas le
-> compte du bureau utilisé pour la page d'administration. La différence de
-> portée est considérable : qui peut ouvrir le Table Editor peut aussi modifier
-> le schéma, lire toutes les autres tables et changer les politiques. La lecture
-> des messages passe donc aujourd'hui par un accès plus large que le strict
-> nécessaire. C'est le prix de la simplicité — aucune politique supplémentaire à
-> maintenir — et il se paie en nombre de personnes à qui l'on donne les clés du
-> projet.
-
-| Colonne     | Signification                                                             |
-| ----------- | ------------------------------------------------------------------------- |
-| `sujet`     | L'objet du message                                                        |
-| `corps`     | Le texte                                                                  |
-| `categorie` | La rubrique choisie par le parent                                         |
-| `reponse_a` | L'adresse à laquelle répondre, **ou vide** si le parent n'en a pas laissé |
-| `traite`    | À cocher une fois le message traité                                       |
+| Colonne     | Signification                                                                |
+| ----------- | ---------------------------------------------------------------------------- |
+| `sujet`     | L'objet du message                                                           |
+| `corps`     | Le texte                                                                     |
+| `categorie` | La rubrique choisie par le parent                                            |
+| `reponse_a` | L'adresse à laquelle répondre, **ou vide** si le parent n'en a pas laissé    |
+| `traite`    | À cocher une fois le message traité — la page d'administration le fait aussi |
 
 Deux remarques pratiques :
 
 - un message **sans `reponse_a` ne peut pas recevoir de réponse**. C'est un
-  choix laissé au parent, rappelé dans le formulaire ;
+  choix laissé au parent, rappelé dans le formulaire, et l'onglet Messages de la
+  page le dit à sa place plutôt que d'afficher un lien qui n'ouvrirait rien ;
 - un parent peut envoyer **trois messages par quart d'heure**. Au-delà, la base
   refuse et l'application l'explique. Ce plafond est là pour arrêter une
   inondation automatique, pas pour limiter un usage normal.
 
 Penser à vider régulièrement les messages traités : ce sont les seules données
-personnelles que l'application conserve.
+personnelles que l'application conserve. La suppression ne se fait **que** depuis
+le tableau de bord — elle est irréversible, et la page ne l'offre pas.

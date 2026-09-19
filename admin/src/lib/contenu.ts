@@ -10,6 +10,7 @@ import type {
   EvenementAgendaUpdate,
   MenuCantine,
   MenuCantineUpdate,
+  MessageParent,
 } from './types';
 
 /**
@@ -242,6 +243,75 @@ export async function supprimerDocument(client: Client, id: string): Promise<voi
 
   if (error !== null) {
     echec('Le document n’a pas pu être supprimé', error.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Messages des parents
+// ---------------------------------------------------------------------------
+//
+//  LE SEUL ENDROIT DE CETTE PAGE QUI LISE DES DONNÉES DE PARENTS
+//  -----------------------------------------------------------
+//  Les quatre autres domaines publient ce que l'école décide ; celui-ci lit ce
+//  que des parents ont écrit, parfois sur une situation personnelle. Deux
+//  conséquences, et elles expliquent la forme du code plus bas :
+//
+//    - `COLONNES_MESSAGE` est PLUS ÉTROITE que la table. `appareil_id` en est
+//      absent, délibérément : rien dans le travail du bureau ne demande un
+//      identifiant stable d'appareil, et le demander le ferait sortir de la
+//      base. Voir le commentaire de `MessageParent` dans `types.ts`.
+//    - il n'y a PAS de `supprimerMessage`. La politique de confidentialité
+//      promet que les messages traités sont supprimés ; la suppression reste un
+//      geste du tableau de bord Supabase, fait en connaissance de cause. Un
+//      bouton « supprimer » à côté d'une case à cocher est un geste qu'on
+//      déclenche de travers, et rien ne le rattrape.
+
+export const COLONNES_MESSAGE = 'id, sujet, corps, categorie, reponse_a, traite, created_at';
+
+/**
+ * Les messages reçus, les non traités d'abord, les plus récents en tête.
+ *
+ * L'ordre porte la seule décision d'usage de cette liste : le bureau ouvre
+ * l'écran pour savoir ce qui reste à faire. Trier par date seule enterrerait un
+ * message ancien jamais traité sous dix messages récents déjà lus — et c'est
+ * exactement celui qu'il ne faut pas perdre.
+ *
+ * `traite` est un booléen : `ascending: true` met donc `false` — non traité —
+ * en premier. C'est le sens de lecture qu'on veut, mais il ne se lit pas dans
+ * le mot « ascendant » ; d'où ce commentaire.
+ */
+export async function listerMessages(client: Client): Promise<MessageParent[]> {
+  const { data, error } = await client
+    .from('messages')
+    .select(COLONNES_MESSAGE)
+    .order('traite', { ascending: true })
+    .order('created_at', { ascending: false });
+
+  if (error !== null) {
+    echec('Les messages n’ont pas pu être lus', error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Marque un message comme traité, ou le remet dans la pile.
+ *
+ * La valeur est écrite, jamais inversée : lire `traite` puis envoyer son
+ * contraire ferait dépendre le résultat de ce que la page croyait savoir. Si
+ * deux membres du bureau ont l'écran ouvert, l'un des deux écraserait la
+ * décision de l'autre à partir d'une valeur périmée. La case transmet donc
+ * l'état qu'elle affiche, et ce qui est écrit est ce qui a été cliqué.
+ */
+export async function marquerMessageTraite(
+  client: Client,
+  id: string,
+  traite: boolean,
+): Promise<void> {
+  const { error } = await client.from('messages').update({ traite }).eq('id', id);
+
+  if (error !== null) {
+    echec('Le message n’a pas pu être marqué', error.message);
   }
 }
 

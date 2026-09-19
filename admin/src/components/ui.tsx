@@ -172,10 +172,12 @@ export function Case({
   libelle,
   cochee,
   onChange,
+  desactive = false,
 }: {
   readonly libelle: string;
   readonly cochee: boolean;
   readonly onChange: (cochee: boolean) => void;
+  readonly desactive?: boolean;
 }) {
   const id = useId();
 
@@ -186,6 +188,7 @@ export function Case({
           id={id}
           type="checkbox"
           checked={cochee}
+          disabled={desactive}
           onChange={(evenement) => onChange(evenement.target.checked)}
           style={{ width: 'auto' }}
         />

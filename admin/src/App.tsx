@@ -7,6 +7,7 @@ import { Annonces } from './ecrans/Annonces';
 import { Cantine } from './ecrans/Cantine';
 import { Connexion } from './ecrans/Connexion';
 import { Documents } from './ecrans/Documents';
+import { Messages } from './ecrans/Messages';
 import { creerClient, estMembreBureau, type Client } from './lib/client';
 import type { ConfigLue, ConfigSupabase } from './lib/config';
 import { messageDe } from './lib/erreurs';
@@ -34,6 +35,7 @@ const ONGLETS = [
   { cle: 'cantine', libelle: 'Cantine' },
   { cle: 'agenda', libelle: 'Agenda' },
   { cle: 'documents', libelle: 'Documents' },
+  { cle: 'messages', libelle: 'Messages' },
 ] as const;
 
 type CleOnglet = (typeof ONGLETS)[number]['cle'];
@@ -197,6 +199,7 @@ function Administration({ config }: { readonly config: ConfigSupabase }) {
       {onglet === 'cantine' && <Cantine client={client} />}
       {onglet === 'agenda' && <Agenda client={client} />}
       {onglet === 'documents' && <Documents client={client} />}
+      {onglet === 'messages' && <Messages client={client} />}
     </div>
   );
 }

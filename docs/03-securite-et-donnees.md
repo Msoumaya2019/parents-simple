@@ -23,11 +23,11 @@ délibéré : un endroit à relire, un endroit à vérifier automatiquement.
 
 ## Les trois niveaux d'accès
 
-| Rôle            | Qui                                   | Ce qu'il peut faire                        |
-| --------------- | ------------------------------------- | ------------------------------------------ |
-| `anon`          | Un parent, depuis son téléphone       | Lire le contenu, déposer un message, voter |
-| `authenticated` | Une personne **nommée dans la liste** | Publier — et rien de plus                  |
-| `service_role`  | Le bureau, via le tableau de bord     | Tout — contourne la RLS                    |
+| Rôle            | Qui                                   | Ce qu'il peut faire                                |
+| --------------- | ------------------------------------- | -------------------------------------------------- |
+| `anon`          | Un parent, depuis son téléphone       | Lire le contenu, déposer un message, voter         |
+| `authenticated` | Une personne **nommée dans la liste** | Publier, et lire les messages reçus — rien d'autre |
+| `service_role`  | Le bureau, via le tableau de bord     | Tout — contourne la RLS                            |
 
 `authenticated` ne reçoit des privilèges que depuis la migration des membres du
 bureau, et **le rôle seul n'ouvre rien** : chaque politique d'écriture qui le vise
@@ -62,24 +62,55 @@ avec sa propre session.
 > sans clause `to`, puisque l'absence de clause vaut PUBLIC — et `anon` en fait
 > partie.
 
-### `sondage_votes` et `messages` : aucune politique, et c'est le cœur du sujet
+### `sondage_votes` : aucune politique, et c'est le cœur du sujet
 
-Ces deux tables ne reçoivent **aucune politique**. La RLS étant active et aucune
+Cette table ne reçoit **aucune politique**. La RLS étant active et aucune
 politique ne s'appliquant, tout accès direct est refusé — en lecture comme en
 écriture.
 
 L'intérêt n'est pas seulement d'interdire l'écriture. C'est aussi d'interdire la
-**lecture** :
+**lecture** : `sondage_votes` contient les identifiants d'installation des
+votants. Les exposer permettrait de savoir quel téléphone a voté quoi, et de
+croiser cette information avec d'autres.
 
-- `messages` contient des messages adressés au bureau. Certains signalent une
-  situation personnelle — un enfant qui ne mange pas, un problème de transport,
-  une difficulté familiale. Ils ne regardent personne d'autre que le bureau ;
-- `sondage_votes` contient les identifiants d'installation des votants. Les
-  exposer permettrait de savoir quel téléphone a voté quoi, et de croiser cette
-  information avec d'autres.
+La seule opération légitime passe par `sondage_resultats()`, qui s'exécute avec
+les droits du propriétaire et ne renvoie que des compteurs.
 
-Les deux seules opérations légitimes passent par des fonctions qui s'exécutent
-avec les droits du propriétaire, et qui ne renvoient que ce qui est nécessaire.
+### `messages` : une porte étroite, ouverte au bureau seul
+
+Cette table a longtemps porté **aucune politique elle aussi**, et sa lecture
+était donc réservée au tableau de bord Supabase. C'était cohérent, mais le prix
+était plus élevé qu'il n'y paraissait : ouvrir le Table Editor suppose un compte
+ayant accès au **projet** — qui peut aussi modifier le schéma, lire toutes les
+autres tables et changer les politiques. Lire un message de parent demandait
+donc les clés du projet.
+
+`supabase/migrations/20260919140000_messages_bureau.sql` ouvre une voie
+étroite, et elle mérite d'être décrite précisément :
+
+| Ce qui change                                 | Ce qui ne change pas                                            |
+| --------------------------------------------- | --------------------------------------------------------------- |
+| `grant select, update` à `authenticated`      | `anon` ne reçoit **aucun** privilège                            |
+| Deux politiques, `for select` et `for update` | Ni `insert` (c'est `envoyer_message()`), ni `delete`            |
+| Le bureau lit depuis la page d'administration | Les messages des parents restent illisibles par la clé publique |
+
+**Il n'y a pas de `for all`, et c'est délibéré.** Le bureau lit et marque comme
+traité ; il n'insère pas et ne supprime pas. Un `for all` aurait exprimé un
+droit qu'on ne veut pas donner, et la ligne aurait fini par être prise pour une
+autorisation.
+
+**Il n'y a pas de `delete`, et c'est une décision de fond.** La page de
+confidentialité promet que les messages traités sont supprimés. La promesse est
+tenue, mais par une personne, depuis le tableau de bord, et non par une case à
+cocher qui pourrait être cliquée de travers.
+
+`messages` **reste dans la liste des tables fermées** de `npm run securite:api`,
+et les deux sondes — lecture et insertion avec la clé publique — continuent de
+l'y vérifier. Ce qui a changé, c'est la **cause** de la fermeture : elle tenait à
+l'absence de politique, elle tient désormais au seul `revoke all … from anon`.
+La distinction compte, parce qu'un lecteur qui croirait l'ancienne raison
+ajouterait la politique manquante « pour réparer » et ouvrirait les messages des
+parents.
 
 ---
 
@@ -147,37 +178,51 @@ Deux contrôles, à deux niveaux. Aucun ne remplace l'autre.
 - une table n'active pas la RLS ;
 - les privilèges par défaut d'une table ne sont pas révoqués pour `anon` ;
 - une politique vise une table inexistante ;
-- `messages` ou `sondage_votes` reçoit une politique, ou un droit de lecture ;
+- `sondage_votes` reçoit une politique, ou un droit de lecture ;
+- `messages` reçoit un privilège **quelconque** pour `anon`, ou une politique
+  qui ne vise pas `authenticated`, ou une politique dont la clause `using` ne
+  porte pas `public.est_membre_bureau()` — la condition est lue **dans la
+  clause**, par appariement des parenthèses, pour qu'un `using (true)` suivi
+  d'un `with check` gardé ne passe pas ;
 - une table de contenu n'est pas lisible, ou n'a pas de politique ;
 - une fonction exposée n'est pas `security definer`, ou ne fixe pas son
   `search_path` ;
 - une politique d'écriture vise `anon`, ou **omet sa clause `to`** — qui vaut
   PUBLIC, et `anon` en fait partie ;
 - une politique d'écriture vise `authenticated` sans conditionner l'accès à
-  `public.est_membre_bureau()`, **dans `using` et dans `with check`**.
+  `public.est_membre_bureau()`, **dans `using` et dans `with check`** ;
+- une borne de longueur de l'écran de contact n'est confrontée à aucune
+  contrainte — l'ensemble des constantes `LONGUEUR_*` de cet écran est **fermé**,
+  et la liste des bornes tenues est déduite des lectures réellement effectuées,
+  jamais recopiée.
 
-La dernière règle est la plus récente, et elle mérite une phrase de plus. Elle
-existe parce que `npm run securite:api` interroge la base avec la clé **anon** :
-une politique visant `authenticated` lui est invisible, si bien qu'une
-application que tout inscrit pourrait modifier lui aurait donné un vert. Les deux
-clauses sont exigées séparément parce que `with check` ne s'applique **ni à
-`delete`, ni au choix des lignes visibles** : un `using (true)` accompagné d'un
-`with check` gardé laisserait tout inscrit supprimer n'importe quelle annonce.
-Cette forme-là a été écrite, et le contrôle ne la voyait pas — c'est la
-falsification qui l'a montré, pas la relecture.
+La règle de la **condition d'appartenance** mérite une phrase de plus, parce
+qu'elle porte désormais sur **deux** familles de tables : les tables de contenu
+écrites par le bureau, et `messages`, dont la politique de lecture n'existe que
+pour lui. Elle existe parce que `npm run securite:api` interroge la base avec la
+clé **anon** : une politique visant `authenticated` lui est invisible, si bien
+qu'une application que tout inscrit pourrait modifier — ou dont tout inscrit
+pourrait lire les messages — lui aurait donné un vert. Les deux clauses sont
+exigées séparément parce que `with check` ne s'applique **ni à `delete`, ni au
+choix des lignes visibles** : un `using (true)` accompagné d'un `with check`
+gardé laisserait tout inscrit supprimer n'importe quelle annonce. Cette forme-là
+a été écrite, et le contrôle ne la voyait pas — c'est la falsification qui l'a
+montré, pas la relecture.
 
 Ces fautes ont une particularité : **elles ne se voient nulle part ailleurs**.
 Le schéma s'applique sans erreur, l'application fonctionne, et le défaut reste
 invisible jusqu'à ce que quelqu'un l'exploite.
 
-Le contrôle a été éprouvé : retirer une ligne `enable row level security`,
-accorder par mégarde un `grant select` sur `messages`, ajouter une politique
-d'écriture pour `anon`, en ajouter une sans clause `to`, ou en ajouter une pour
-`authenticated` sans la condition d'appartenance — chaque fois il échoue, avec le
-message correspondant. Une variante a aussi été éprouvée pour le contrôle
-lui-même : neutraliser la règle — le contrôle ne reconnaît plus le rôle — fait
-échouer son garde-fou d'extraction, au lieu de la laisser passer au vert sans rien
-regarder.
+Le contrôle a été éprouvé, mutation par mutation : retirer une ligne
+`enable row level security` ; accorder par mégarde un `grant select` sur
+`messages` ; accorder un privilège à `anon` ; viser `anon` au lieu de
+`authenticated` ; écrire `using (true)` en gardant `with check` ; **nier** la
+condition au lieu de l'exiger ; ouvrir `with check` sous un `using` gardé ;
+retirer une borne de sa liste ; ajouter à l'écran de contact une constante
+`LONGUEUR_*` que rien ne confronte — chaque fois il échoue, avec le message
+correspondant. Une variante a aussi été éprouvée pour le contrôle lui-même :
+neutraliser la règle — le contrôle ne reconnaît plus le rôle — fait échouer son
+garde-fou d'extraction, au lieu de la laisser passer au vert sans rien regarder.
 
 ### 2. La base, interrogée — `npm run securite:api`
 
@@ -202,12 +247,22 @@ APK peut réellement faire :
 | `est_membre_bureau`                                                 | **refusée** (HTTP 401 ou 403)  |
 | La clé utilisée                                                     | est la clé publique            |
 
+> Ce contrôle ne dit rien de ce que le **bureau** peut faire : il n'est jamais
+> une personne connectée. Depuis que `messages` porte des politiques visant
+> `authenticated`, cette limite compte davantage — la garantie qu'un inscrit
+> quelconque ne lit pas les messages des parents ne repose plus sur
+> `securite:api`, mais sur la règle de `sql:check` qui exige la condition
+> d'appartenance dans chaque politique. Les deux contrôles sont nécessaires, et
+> aucun ne remplace l'autre.
+
 Quatre points de conception :
 
 - **Une table fermée doit répondre « interdit », pas « liste vide ».** Un 200
-  avec `[]` signifierait que le privilège de lecture a été accordé et que seule
-  l'absence de politique retient les lignes — un ajout de politique accidentel
-  ouvrirait alors la table. Le contrôle exige donc un 401 ou un 403.
+  avec `[]` signifierait que le privilège de lecture a été accordé et que la RLS
+  retient les lignes — parce qu'aucune politique ne s'applique, ou, pour
+  `messages`, parce que les politiques visent `authenticated` et que la clé
+  publique ne l'est pas. Dans les deux cas, la table serait à un `create policy`
+  près d'être ouverte. Le contrôle exige donc un 401 ou un 403.
 - **Aucune requête ne modifie la base.** Les appels aux fonctions sont choisis
   pour échouer avant toute insertion : un sondage inexistant pour `voter`, un
   sujet vide pour `envoyer_message`. Le contrôle ne dépose jamais un message
@@ -302,8 +357,11 @@ Le champ vide n'est pas une tolérance mais le cas normal : la contrainte autori
 
 ### Durées de conservation
 
-- **Messages** : le temps du traitement. À supprimer depuis le tableau de bord
-  une fois traités — ce sont les seules données personnelles conservées.
+- **Messages** : le temps du traitement. Le bureau les marque « traités » depuis
+  la page d'administration, puis les supprime depuis le tableau de bord — ce sont
+  les seules données personnelles conservées. La suppression n'est **pas** offerte
+  dans la page : elle est irréversible, et une case à cocher voisine se clique de
+  travers.
 - **Votes** : conservés sous forme de totaux. Les identifiants cessent d'être
   utiles dès la clôture du sondage.
 - **Contenu publié** : tant qu'il reste utile aux familles.
@@ -358,7 +416,18 @@ compte comme absente.
    trou le plus dangereux des trois : `npm run securite:api` ne pouvait pas la
    voir, puisqu'elle ne concerne pas la clé publique.
 
-6. **`npm audit` signale quatorze vulnérabilités modérées qui ne concernent pas
+6. **`messages` n'est plus fermée par l'absence de politique, mais par le seul
+   `revoke`.** Depuis `20260919140000_messages_bureau.sql`, la table porte deux
+   politiques visant `authenticated`. Ce qui refuse la clé publique est donc le
+   `revoke all … from anon`, et non plus une politique manquante. La distinction
+   est celle qui piège : croire l'ancienne raison ferait ajouter la politique
+   « oubliée » et ouvrirait les messages des parents. Deux contrôles la rendent
+   visible si l'erreur est commise — `sql:check` exige, pour cette table, que
+   **chaque** politique vise `authenticated` et porte la condition d'appartenance
+   dans sa clause `using` ; `securite:api` sonde la lecture **et** l'insertion
+   avec la clé publique.
+
+7. **`npm audit` signale quatorze vulnérabilités modérées qui ne concernent pas
    l'application livrée.** Deux avis distincts, tous deux dans la chaîne
    d'outillage d'Expo : `decode-uri-component` (déni de service par décodage
    exponentiel d'une entrée mal formée, atteint via `expo-router` →

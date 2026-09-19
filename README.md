@@ -30,10 +30,12 @@ parent. Cinq onglets :
      sondages                            message, vote
 ```
 
-Il n'y a **pas d'interface d'administration à construire ni à maintenir**. Le
-bureau publie depuis le tableau de bord Supabase, qui est protégé par le compte
-de l'association. C'est un choix : pour quelques publications par semaine, cela
-supprime tout un pan de code, de surface d'attaque et de maintenance.
+Il n'y a **pas d'interface d'administration dans l'application des parents**. Le
+bureau publie soit depuis le tableau de bord Supabase, protégé par le compte de
+l'association, soit depuis la page web de `admin/` — décrite plus bas et dans
+[`docs/05-administration.md`](docs/05-administration.md). C'est un choix : pour
+quelques publications par semaine, cela supprime tout un pan de code de
+l'application livrée, de surface d'attaque et de maintenance.
 
 Les deux seules écritures possibles depuis l'application — déposer un message,
 répondre à un sondage — passent par des fonctions de la base, et non par des
@@ -61,9 +63,10 @@ GitHub.
 | **iPhone**  | IPA non signé, à signer soi-même               | [`docs/01-installer-sur-iphone.md`](docs/01-installer-sur-iphone.md)   |
 | **Android** | APK installable directement, sans re-signature | [`docs/04-installer-sur-android.md`](docs/04-installer-sur-android.md) |
 
-Le **bureau** publie les annonces, les menus, l'agenda et les documents depuis
-une page web, dans `admin/`. Elle ne demande aucun serveur, et son installation
-est décrite dans [`docs/05-administration.md`](docs/05-administration.md).
+Le **bureau** publie les annonces, les menus, l'agenda et les documents — et lit
+les messages que des parents lui ont adressés — depuis une page web, dans
+`admin/`. Elle ne demande aucun serveur, et son installation est décrite dans
+[`docs/05-administration.md`](docs/05-administration.md).
 
 ---
 
@@ -290,11 +293,19 @@ Quatre d'entre eux méritent une explication, car ils ne sont pas ordinaires :
   lance tous les autres.
 
 - **`sql:check`** lit les migrations et vérifie que chaque table active la RLS,
-  que ses privilèges sont révoqués puis accordés explicitement, que les trois
-  tables sensibles — `messages`, `sondage_votes` et `membres_bureau` — restent
-  fermées, et qu'**aucune politique d'écriture ne vise le rôle anonyme**. Il
+  que ses privilèges sont révoqués puis accordés explicitement, que
+  `sondage_votes` et `membres_bureau` restent fermées — sans aucune politique —
+  et qu'**aucune politique d'écriture ne vise le rôle anonyme**. Il
   refuse aussi une politique sans clause `to`, qui vaut PUBLIC et ouvrirait donc
   la table à tout le monde sans que rien ne le laisse voir à la lecture.
+
+  `messages` **en est sortie** le jour où la page d'administration a ouvert au
+  bureau la lecture des messages : la table porte désormais deux politiques. Ce
+  qui la ferme à la clé publique n'est donc plus l'absence de politique, mais le
+  seul `revoke`. Pour que ce déplacement ne soit pas un affaiblissement déguisé,
+  une règle plus stricte a pris sa place : pour cette table, aucun privilège à
+  `anon`, et **chaque** politique vise `authenticated` en portant
+  `public.est_membre_bureau()` dans sa clause `using`.
 
   Il exige enfin que **chaque politique d'écriture visant `authenticated`** porte
   la condition `public.est_membre_bureau()`, dans `using` **et** dans
@@ -319,9 +330,11 @@ Quatre d'entre eux méritent une explication, car ils ne sont pas ordinaires :
   chaîne passée à `select`. Une colonne mal orthographiée traverse donc `tsc`,
   `eslint` et la construction, et n'échoue qu'à l'exécution — devant le bureau,
   au moment où il croit avoir publié. Ce contrôle **ferme** aussi les ensembles :
-  une contrainte bornée ajoutée à une migration, ou une cinquième table appelée
-  par la page, fait échouer le contrôle tant qu'elle n'a pas été prise en compte
-  délibérément.
+  une contrainte bornée ajoutée à une migration, ou une table appelée par la page
+  et non déclarée, fait échouer le contrôle tant qu'elle n'a pas été prise en
+  compte délibérément. Une seule table est exemptée de bornes — `messages`, dont
+  le sujet et le corps sont écrits par les parents — et l'exemption n'est
+  acceptée que si `sql:check` nomme les contraintes correspondantes.
 - **`export:android`** est le seul contrôle qui fait passer le paquet par Metro.
   Un module natif mal déclaré échoue ici et nulle part ailleurs.
 
@@ -481,7 +494,7 @@ src/
 supabase/migrations/        Le schéma — et la sécurité de l'application
 admin/                      Page d'administration du bureau (statique, sans serveur)
   src/lib/                  Configuration, client, requêtes, bornes de saisie
-  src/ecrans/               Connexion, annonces, cantine, agenda, documents
+  src/ecrans/               Connexion, annonces, cantine, agenda, documents, messages
   src/components/           Champs et avis partagés
 scripts/                    Contrôles automatiques et outils ponctuels
 ```
@@ -658,9 +671,10 @@ Ce qui en découle, et qui est vérifié automatiquement à chaque poussée :
 
 - chaque table active la sécurité au niveau des lignes ;
 - le contenu est lisible, jamais modifiable avec la clé publique ;
-- `messages` et `sondage_votes` ne sont lisibles par personne : les résultats
-  des sondages passent par une fonction qui ne renvoie que des compteurs, et les
-  messages ne sont visibles que du bureau ;
+- `messages` et `sondage_votes` ne sont lisibles par **personne avec la clé
+  publique** : les résultats des sondages passent par une fonction qui ne renvoie
+  que des compteurs, et les messages ne sont visibles que du bureau — depuis la
+  page d'administration, avec son compte ;
 - les écritures passent par des fonctions `security definer` qui appliquent
   leurs règles, y compris face à un client modifié.
 

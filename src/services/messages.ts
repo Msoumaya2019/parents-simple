@@ -12,9 +12,16 @@
  * c'est exactement l'objectif.
  */
 
-import type { MessageCategorie, NouveauMessage } from '@/types/models';
+import type { NouveauMessage } from '@/types/models';
 import { identifiantAppareil } from '@/lib/identifiants';
 import { client, executer } from '@/services/client';
+
+//  Les catégories et leurs libellés vivent dans `src/lib/categories-message.ts`,
+//  un module qui n'importe rien à l'exécution — donc éprouvable par un banc. Ce
+//  fichier-ci ne l'est pas : il importe le client Supabase et `expo-crypto`.
+//  Ils sont réexportés pour que les appelants n'aient pas à connaître ce
+//  déplacement.
+export { CATEGORIES_MESSAGE, libelleCategorieMessage } from '@/lib/categories-message';
 
 /**
  * Envoie un message, et rend son identifiant.
@@ -36,24 +43,3 @@ export async function envoyerMessage(message: NouveauMessage): Promise<string> {
     }),
   );
 }
-
-/** Libellé lisible d'une catégorie de message. */
-export function libelleCategorieMessage(categorie: MessageCategorie): string {
-  const libelles: Record<MessageCategorie, string> = {
-    cantine: 'Cantine',
-    transport: 'Transport',
-    vie_scolaire: 'Vie scolaire',
-    activites: 'Activités et sorties',
-    autre: 'Autre',
-  };
-  return libelles[categorie];
-}
-
-/** Les catégories proposées dans le formulaire, dans l'ordre d'affichage. */
-export const CATEGORIES_MESSAGE: readonly MessageCategorie[] = [
-  'vie_scolaire',
-  'cantine',
-  'transport',
-  'activites',
-  'autre',
-];

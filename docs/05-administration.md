@@ -1,8 +1,8 @@
 # Administrer l'application depuis une page web
 
-Le bureau publie les annonces, les menus de cantine, l'agenda et les documents
-depuis une page web, plutôt que depuis le tableau de bord Supabase. Cette page
-est dans `admin/`.
+Le bureau publie les annonces, les menus de cantine, l'agenda et les documents —
+et lit les messages que des parents lui ont adressés — depuis une page web,
+plutôt que depuis le tableau de bord Supabase. Cette page est dans `admin/`.
 
 Elle ne coûte rien, ne demande aucun serveur, et **n'a aucun pouvoir propre** :
 tout ce qu'une personne peut y faire est décidé par les politiques de
@@ -12,14 +12,19 @@ soit publiquement accessible.
 
 ---
 
-## 1. Avant tout : appliquer la migration
+## 1. Avant tout : appliquer les migrations
 
-La page ne peut rien écrire tant que la migration n'est pas appliquée.
+La page ne peut rien écrire tant que la première migration n'est pas appliquée,
+et son onglet **Messages** ne peut rien lire tant que la seconde ne l'est pas.
 
 1. Ouvrir le tableau de bord Supabase du projet, puis **SQL Editor**.
 2. Coller le contenu entier de
-   `supabase/migrations/20260918001000_membres_bureau.sql`.
-3. Exécuter.
+   `supabase/migrations/20260918001000_membres_bureau.sql`, puis exécuter.
+3. Coller ensuite le contenu entier de
+   `supabase/migrations/20260919140000_messages_bureau.sql`, puis exécuter.
+
+L'ordre compte : la seconde migration appelle `public.est_membre_bureau()`, que
+la première crée. L'inverse échoue à la première politique.
 
 Ou, en ligne de commande, par le **même point d'entrée** que l'éditeur SQL — donc
 sans projet lié, et sans `db push` qui comparerait au dépôt distant :
@@ -27,6 +32,7 @@ sans projet lié, et sans `db push` qui comparerait au dépôt distant :
 ```bash
 npx supabase login   # une seule fois : dépose un jeton dans ~/.supabase/
 node scripts/appliquer-migration.mjs supabase/migrations/20260918001000_membres_bureau.sql
+node scripts/appliquer-migration.mjs supabase/migrations/20260919140000_messages_bureau.sql
 ```
 
 Les chemins se lisent **depuis la racine du dépôt**. L'outil n'écrit aucun jeton :
@@ -333,10 +339,18 @@ la chaîne passée à `select`. Une colonne mal orthographiée traverse donc `ts
 moment précis où il croit avoir publié.
 
 Le contrôle **ferme** ces ensembles au lieu de les survoler : une contrainte
-bornée ajoutée à une migration, ou une cinquième table appelée par la page, le
-fait échouer tant qu'elle n'a pas été prise en compte délibérément. Il ne demande
-aucun secret, ne touche pas la base, et tourne dans l'intégration continue avant
-la construction de l'administration.
+bornée ajoutée à une migration, ou une table appelée par la page et non déclarée,
+le fait échouer tant qu'elle n'a pas été prise en compte délibérément. Il ne
+demande aucun secret, ne touche pas la base, et tourne dans l'intégration
+continue avant la construction de l'administration.
+
+**Une seule table est exemptée de bornes : `messages`**, et l'exemption est
+écrite avec son motif, en toutes lettres, dans `scripts/check-admin.mjs`. La page
+y lit et coche « traité » ; elle n'écrit ni le sujet ni le corps, qui sont
+déposés par `envoyer_message()`. Les deux bornes de cette table sont tenues par
+l'écran de contact, et le contrôle **exige** que `scripts/check-sql.mjs` les
+nomme — une exemption que personne ne rattrape serait le trou par lequel le
+défaut rentre.
 
 ### Ce qu'il ne tient pas
 
@@ -352,14 +366,41 @@ main dans les deux autres endroits.
 
 ## 8. Ce que la page ne fait pas
 
-- **Les messages des parents.** Ils se lisent dans le tableau de bord, table
-  `messages`. Les ouvrir à la page serait possible, mais ce sont des données de
-  parents, pas du contenu publié — la décision n'a pas été prise.
+- **Supprimer un message.** L'onglet **Messages** les lit et les marque
+  « traités ». La suppression reste un geste du tableau de bord, table
+  `messages` : elle est irréversible, et un bouton voisin d'une case à cocher se
+  clique de travers. C'est aussi ce qui tient la promesse de la page de
+  confidentialité — les messages traités sont supprimés, mais par une personne
+  qui l'a décidé.
+- **Répondre à un message.** La page affiche l'adresse que le parent a laissée,
+  et un lien qui ouvre le logiciel de messagerie. Le bureau répond depuis sa
+  propre boîte ; rien n'est envoyé depuis l'application. Un message **sans
+  adresse** ne peut pas recevoir de réponse, et l'écran le dit au lieu de laisser
+  croire l'inverse.
 - **Les sondages.** Les tables sont ouvertes en écriture au bureau, mais aucun
   écran ne les gère : créer un sondage et ses réponses demande un formulaire
   imbriqué, qui n'a pas été écrit.
 - **La liste des membres.** Elle se consulte dans le tableau de bord. Elle n'est
   lisible par personne via l'API, pas même par ses propres membres.
+
+### Ce que l'onglet Messages a demandé, et qu'il faut savoir
+
+Cet onglet **n'existait pas** au départ, et son absence était cohérente : la
+table `messages` ne portait aucune politique, donc personne ne pouvait la lire
+par l'API, et le seul chemin était le tableau de bord. Mais ce chemin coûte un
+**compte ayant accès au projet** — qui peut aussi modifier le schéma, lire
+toutes les autres tables et changer les politiques. Lire un message de parent
+demandait donc bien plus que le nécessaire.
+
+Une seconde migration, `20260919140000_messages_bureau.sql`, ouvre une voie
+étroite : le bureau lit avec son compte du bureau. Elle doit être **appliquée à
+la main**, comme la première, et l'onglet échoue tant que ce n'est pas fait —
+avec un message qui le dit, plutôt qu'un message de Postgres parlant de relation
+inexistante.
+Ce que la migration ne fait pas, et c'est délibéré : ni `insert` (c'est
+`envoyer_message()`, appelée par le téléphone du parent), ni `delete`. Et la clé
+publique ne lit toujours rien — la table reste dans la liste des tables fermées
+que `npm run securite:api` sonde.
 
 ### Un point à trancher, pas à laisser dériver
 

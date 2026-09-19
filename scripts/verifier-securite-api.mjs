@@ -64,12 +64,26 @@ const TABLES_LISIBLES = [
 ];
 
 /**
- * Tables sensibles : ni lisibles ni écrivables.
+ * Tables sensibles : ni lisibles ni écrivables AVEC LA CLÉ PUBLIQUE.
  *
  * `membres_bureau` en fait partie, et c'est ce qui rend le reste vérifiable :
  * tant que cette table répond 404, la migration des membres du bureau n'est pas
  * appliquée, et tout ce qui suit se contenterait d'un « absent » pris pour un
  * « refusé ». La présence de la table est donc le premier maillon de la chaîne.
+ *
+ * `messages` RESTE ICI, ET CE N'EST PAS UN OUBLI
+ * ----------------------------------------------
+ * `20260919140000_messages_bureau.sql` ouvre la lecture de cette table au
+ * bureau. Elle y ouvre donc des POLITIQUES, alors que sa fermeture tenait
+ * jusqu'ici à leur absence. Ce qui ferme la table à la clé publique est
+ * désormais le seul `revoke all … from anon` — c'est-à-dire un `grant`, et non
+ * plus une politique manquante.
+ *
+ * La distinction compte pour qui lira ce fichier plus tard : croire que
+ * l'absence de politique retient encore la table ferait ajouter la politique
+ * manquante « pour réparer », et ouvrirait les messages des parents. Les deux
+ * sondes ci-dessous — lecture et insertion avec la clé publique — sont ce qui
+ * rend l'erreur visible si elle est commise.
  */
 const TABLES_FERMEES = ['messages', 'sondage_votes', 'membres_bureau'];
 
