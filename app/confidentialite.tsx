@@ -107,6 +107,14 @@ export default function ConfidentialiteScreen(): React.JSX.Element {
 
           <View style={{ height: theme.spacing.md }} />
 
+          <AppText variant="caption" color="muted" style={styles.espace}>
+            Ces deux codes sont des données pseudonymes au sens du règlement européen sur la
+            protection des données (RGPD) : ils distinguent une installation d’une autre sans jamais
+            identifier personne.
+          </AppText>
+
+          <View style={{ height: theme.spacing.md }} />
+
           <AppText variant="label">Vos préférences et vos réponses</AppText>
           <AppText variant="caption" color="muted" style={styles.espace}>
             Le thème choisi, et le souvenir du choix que vous avez retenu à chaque sondage — ce
@@ -161,6 +169,11 @@ export default function ConfidentialiteScreen(): React.JSX.Element {
           Vous pouvez demander à consulter les informations vous concernant et à les faire effacer.
           Désinstaller l’application efface immédiatement les trois informations conservées sur
           votre téléphone.
+        </AppText>
+        <AppText variant="body" color="secondary">
+          Effacer ces codes a une conséquence qu’il faut connaître : après une réinstallation, le
+          même téléphone peut voter une seconde fois au même sondage. C’est la limite d’une
+          application sans compte, et nous préférons la dire plutôt que de la laisser découvrir.
         </AppText>
         <AppText variant="body" color="secondary">
           Pour un message que vous avez envoyé au bureau, la demande se fait directement auprès de

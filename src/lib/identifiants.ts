@@ -30,6 +30,12 @@
  * Désinstaller l'application efface les deux valeurs. Un parent qui réinstalle
  * peut donc voter une seconde fois : c'est une limite connue, décrite dans la
  * politique de confidentialité, et le prix d'une application sans compte.
+ *
+ * Ces deux phrases ont d'abord été fausses. La politique ne nommait ni la
+ * pseudonymie ni la réinstallation : cet en-tête attribuait à un document deux
+ * garanties qu'il ne portait pas. Les mentions ont été ajoutées à la page, et
+ * `tests/politique-de-confidentialite.test.ts` tient l'accord dans les deux
+ * sens — si l'une disparaît de la page ou d'ici, le banc échoue.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';

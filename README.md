@@ -620,6 +620,18 @@ un identifiant unique permettrait de relier un message signé au vote du même
 appareil. Ce sont des données pseudonymes au sens du RGPD, déclarées comme
 telles dans l'écran Confidentialité de l'application.
 
+La désinstallation efface ces deux identifiants. Un même téléphone peut donc
+voter une seconde fois après une réinstallation : c'est la limite d'une
+application sans compte, et l'écran Confidentialité la dit plutôt que de la
+laisser découvrir.
+
+Cet écran est le document opposable, et `tests/politique-de-confidentialite.test.ts`
+tient l'accord entre lui et le code, dans les deux sens : les deux mentions
+ci-dessus, l'absence de champ « nom » dans le formulaire, et l'inventaire des
+clés conservées localement. Une clé ajoutée sans être décrite fait échouer le
+banc — c'est ainsi que deux garanties que l'en-tête de `identifiants.ts`
+attribuait à la page, sans qu'elle les porte, ont été trouvées.
+
 > **Avant toute mise à disposition**, remplir l'objet `RESPONSABLE` en tête de
 > `app/confidentialite.tsx` : nom de l'association, adresse du siège et adresse
 > de contact. Ces informations figurent dans les statuts. La page bascule
