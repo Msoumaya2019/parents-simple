@@ -133,6 +133,28 @@ Les chemins se lisent **depuis la racine du dépôt**. L'outil refuse de partir 
 jeton, ou avec un jeton dont la forme n'est pas `sbp_…`, et n'affiche jamais le
 jeton lui-même.
 
+Il refuse aussi, **avant tout appel réseau**, ce qui n'est pas une migration de ce
+dépôt : un fichier qui ne finit pas par `.sql`, un fichier hors de `supabase/`, un
+fichier vide, ou un module JavaScript renommé en `.sql`. Ce n'est pas une
+précaution de principe, c'est mesuré : lancé un jour avec **le script lui-même** en
+argument, l'outil a envoyé son propre source à la base, qui a répondu
+
+```text
+42601: syntax error at or near "{"
+LINE 29: import { readFileSync, existsSync } from 'node:fs';
+```
+
+L'erreur était exacte — elle parlait de la ligne 29 d'un fichier JavaScript, pas de
+la migration qu'on croyait appliquer. L'outil affiche donc, juste avant d'envoyer,
+le chemin relatif, le nombre de lignes et la **première ligne** du fichier : un
+fichier qui n'est pas celui qu'on croit se voit là.
+
+> **Ce garde-fou est une liste de refus, pas une preuve d'être du SQL.** Il attrape
+> le fichier qu'on lui a réellement passé un jour ; il ne reconnaîtrait ni un
+> binaire, ni un autre langage, ni la mauvaise migration parmi les bonnes. Les deux
+> contrôles qui tranchent sur ce que la base porte sont `npm run securite:api` et
+> `npm run verifier:requetes`, et ils interrogent la base réelle.
+
 > **Il ne suffit pas de coller le premier.** `20260917120000_init.sql` crée les
 > tables ; les fichiers suivants ajoutent des colonnes que l'application lit —
 > la catégorie et l'image d'une actualité, par exemple. Une base arrêtée au
