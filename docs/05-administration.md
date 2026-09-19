@@ -14,6 +14,12 @@ soit publiquement accessible.
 
 ## 1. Avant tout : appliquer les migrations
 
+> **État au 20 septembre 2026 : c'est fait.** Les quatre migrations sont
+> appliquées, et les deux contrôles qui interrogent la base réelle sont verts —
+> `securite:api` **28/28**, `verifier:requetes` **11/11**. Il n'y a donc rien à
+> faire dans cette section ; elle reste pour le jour où le schéma sera remis en
+> place, ou pour comprendre ce que la migration apporte.
+
 La page ne peut rien écrire tant que la première migration n'est pas appliquée,
 et son onglet **Messages** ne peut rien lire tant que la seconde ne l'est pas.
 
