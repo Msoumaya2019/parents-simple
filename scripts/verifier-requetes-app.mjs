@@ -37,6 +37,14 @@
  * divergence-là serait muette : l'écran cesserait simplement de reconnaître
  * l'absence, et ouvrirait un onglet sur du JSON.
  *
+ * Ce dernier contrôle lit le motif **dans le corps de `fichierAbsent`**, et non
+ * dans le fichier. La première version cherchait la chaîne n'importe où dans le
+ * fichier (`source.includes(...)`) : falsifiée, elle restait verte alors que le
+ * motif avait été recopié dans un commentaire et que la fonction cherchait autre
+ * chose. Elle annonçait donc un accord qu'elle ne mesurait pas.
+ * `tests/accord-motif-objet-absent.test.mjs` tient les deux sens, et le contrat
+ * d'import du fichier est éprouvé par `tests/import-sans-configuration.test.mjs`.
+ *
  * CE QU'IL NE VÉRIFIE PAS — À SAVOIR AVANT DE LIRE UN VERT
  * --------------------------------------------------------
  * Les chemins de SUCCÈS de `voter` et `envoyer_message` ne sont vérifiés nulle
@@ -63,6 +71,7 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const DOSSIER_SERVICES = 'src/services';
 const DELAI_MS = 20_000;
@@ -78,8 +87,13 @@ const DELAI_MS = 20_000;
  * l'adresse au navigateur et d'ouvrir un onglet sur ce JSON. Ce sont deux
  * copies d'une même vérité, dans deux fichiers qui ne peuvent pas se lire : un
  * contrôle plus bas vérifie qu'elles s'accordent.
+ *
+ * Elle est EXPORTÉE pour que le banc puisse la comparer à sa propre copie. Le
+ * banc ne l'importe pas pour s'en servir : il la confronte. Lire la valeur depuis
+ * ce qu'on éprouve rendrait l'accord vrai par construction, et c'est le défaut
+ * que `tests/flux-de-travail-attendus.test.mjs` a déjà refusé ailleurs.
  */
-const MOTIF_OBJET_ABSENT = 'NoSuchKey|Object not found';
+export const MOTIF_OBJET_ABSENT = 'NoSuchKey|Object not found';
 
 /** Valeurs de remplacement, par type de colonne. */
 const VALEURS = {
@@ -122,10 +136,29 @@ const URL_BASE = (
 const CLE =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? envLocal.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-if (URL_BASE === '' || CLE === '') {
-  console.error('::error::Configuration absente.');
-  console.error('Renseignez EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_ANON_KEY.');
-  process.exit(1);
+/**
+ * Refuse de continuer sans configuration. Appelée par `main()`, JAMAIS au niveau
+ * du module.
+ *
+ * POURQUOI CE DÉPLACEMENT
+ * -----------------------
+ * Ce refus vivait au niveau du module, où il s'exécute AVANT toute garde
+ * d'import : un fichier qui ne peut pas être importé ne peut pas être éprouvé,
+ * et un contrôle qu'aucun banc ne charge est un contrôle qu'on croit sur parole.
+ * Le script voisin a payé exactement cette erreur — `verifier-securite-api.mjs`
+ * a fait échouer l'intégration continue avec un `process.exit(1)` resté dehors,
+ * et c'est `tests/import-sans-configuration.test.mjs` qui l'a révélé.
+ *
+ * La leçon vaut pour tout le fichier : une garde ne protège que ce qu'elle
+ * enveloppe. Ce qui reste au niveau du module s'exécute à l'import, quoi qu'on
+ * écrive plus bas.
+ */
+function verifierConfiguration() {
+  if (URL_BASE === '' || CLE === '') {
+    console.error('::error::Configuration absente.');
+    console.error('Renseignez EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+    process.exit(1);
+  }
 }
 
 async function appeler(chemin, options = {}) {
@@ -267,7 +300,112 @@ function construireRequete({ table, colonnes, filtres, ordres }) {
   return `/rest/v1/${table}?${parametres.toString()}`;
 }
 
+/**
+ * Le corps d'une fonction déclarée, lu dans un source JavaScript.
+ *
+ * Renvoie `null` si la déclaration est absente. L'appelant doit distinguer ce
+ * cas d'un corps vide : les deux disent des choses différentes — « la fonction a
+ * disparu » et « la fonction ne dit plus rien ».
+ *
+ * Le comptage d'accolades ignore ce qui se trouverait dans une chaîne ou un
+ * commentaire, et c'est assumé : `fichierAbsent` tient en une ligne, et une
+ * analyse lexicale complète serait plus fragile que ce qu'elle protège. Le jour
+ * où la fonction gagne une accolade dans une chaîne, c'est le banc qui le dit.
+ *
+ * L'ancre exige une déclaration en début de ligne, `export` facultatif : sans
+ * elle, une phrase de commentaire citant `function fichierAbsent(` ferait lire
+ * le commentaire à la place du code — exactement le défaut que ce contrôle
+ * corrige.
+ */
+function corpsDeFonction(source, nom) {
+  const declaration = new RegExp(`^(?:export\\s+)?function\\s+${nom}\\s*\\(`, 'm').exec(source);
+  if (declaration === null) return null;
+
+  const ouvrante = source.indexOf('{', declaration.index);
+  if (ouvrante === -1) return null;
+
+  let profondeur = 0;
+  for (let i = ouvrante; i < source.length; i += 1) {
+    if (source[i] === '{') profondeur += 1;
+    else if (source[i] === '}') {
+      profondeur -= 1;
+      if (profondeur === 0) return source.slice(ouvrante + 1, i);
+    }
+  }
+  return null;
+}
+
+/**
+ * Le motif que `fichierAbsent` emploie RÉELLEMENT pour reconnaître un objet
+ * absent, et les drapeaux qui l'accompagnent.
+ *
+ * POURQUOI LIRE LE CORPS, ET NON LE FICHIER
+ * -----------------------------------------
+ * Ce contrôle lisait auparavant le fichier entier :
+ * `sourceService.includes(MOTIF_OBJET_ABSENT)`. Cette forme ne prouvait rien, et
+ * la falsification l'a montré : le motif recopié dans un commentaire et la
+ * fonction cherchant tout autre chose, le contrôle restait VERT. Il annonçait
+ * une formulation « partagée » alors que l'écran ne reconnaissait plus rien.
+ *
+ * Un contrôle qui compte doit lire ce qui décide, jamais ce qui traîne. C'est la
+ * même leçon que pour une valeur citée en commentaire : la citer n'est pas
+ * l'employer.
+ *
+ * Les drapeaux sont lus eux aussi, pour la même raison : un motif identique privé
+ * du `i` ne reconnaîtrait plus `NOSUCHKEY`, et l'écran ouvrirait un onglet sur du
+ * JSON sans que personne ne s'en aperçoive.
+ */
+export function formulationDeLAbsence(sourceService) {
+  const corps = corpsDeFonction(sourceService, 'fichierAbsent');
+  if (corps === null) return null;
+
+  const trouve = /return\s+\/(.*)\/([gimsuy]*)\s*\.test\s*\(/.exec(corps);
+  if (trouve === null) return null;
+
+  return { motif: trouve[1], drapeaux: trouve[2] };
+}
+
+/**
+ * L'accord entre la formulation de ce contrôle et celle de l'application.
+ *
+ * Renvoie `{ ok, detail }` plutôt qu'un booléen : un refus doit dire SUR QUOI il
+ * porte. Un `false` nu obligerait à ouvrir le fichier pour comprendre, et c'est
+ * précisément ce qu'un contrôle automatique doit épargner.
+ */
+export function accordDeFormulation(sourceService, motifAttendu) {
+  const trouvee = formulationDeLAbsence(sourceService);
+
+  if (trouvee === null) {
+    return {
+      ok: false,
+      detail:
+        'fichierAbsent est introuvable dans le service, ou n’y porte plus de motif ' +
+        'lisible — le contrôle ne peut donc plus comparer quoi que ce soit',
+    };
+  }
+
+  if (trouvee.motif !== motifAttendu) {
+    return {
+      ok: false,
+      detail: `l’application cherche « ${trouvee.motif} », ce contrôle cherche « ${motifAttendu} »`,
+    };
+  }
+
+  if (!trouvee.drapeaux.includes('i')) {
+    return {
+      ok: false,
+      detail:
+        `l’application cherche « ${trouvee.motif} » sans le drapeau i ` +
+        `(drapeaux : ${trouvee.drapeaux === '' ? 'aucun' : trouvee.drapeaux})`,
+    };
+  }
+
+  return { ok: true, detail: '' };
+}
+
 async function main() {
+  verifierConfiguration();
+
   console.log(`Base interrogée : ${URL_BASE}`);
   console.log('');
 
@@ -386,14 +524,16 @@ async function main() {
   // Ce contrôle-ci ne peut pas éprouver le chemin de succès (il faudrait un
   // fichier réellement déposé) ; il peut au moins empêcher les deux copies de
   // diverger, ce qui est la seule chose qui dépend de nous.
+  //
+  // La comparaison porte sur le motif LU DANS LE CORPS de `fichierAbsent`, jamais
+  // sur la présence de la chaîne dans le fichier : la seconde forme laissait
+  // passer un motif recopié dans un commentaire pendant que la fonction cherchait
+  // autre chose. `tests/accord-motif-objet-absent.test.mjs` tient les deux sens.
   const accord = "motif d'objet absent : formulation partagée avec l'application";
   try {
     const sourceService = readFileSync(join(DOSSIER_SERVICES, 'documents.ts'), 'utf8');
-    journaliser(
-      accord,
-      sourceService.includes(MOTIF_OBJET_ABSENT),
-      `« ${MOTIF_OBJET_ABSENT} » doit se retrouver dans ${DOSSIER_SERVICES}/documents.ts`,
-    );
+    const verdict = accordDeFormulation(sourceService, MOTIF_OBJET_ABSENT);
+    journaliser(accord, verdict.ok, verdict.detail);
   } catch (cause) {
     journaliser(accord, false, cause.message);
   }
@@ -415,4 +555,21 @@ async function main() {
   console.log("Toutes les requêtes de l'application sont servies par la base.");
 }
 
-await main();
+/**
+ * N'interroge la base que si ce fichier est LANCÉ, jamais s'il est importé.
+ *
+ * Sans cette garde, `tests/accord-motif-objet-absent.test.mjs` déclencherait
+ * tout le contrôle en important la fonction qu'il éprouve : la suite de tests se
+ * mettrait à dépendre du réseau et de secrets, ce que ce projet refuse partout
+ * ailleurs. Un test qui ne tourne qu'avec la base joignable ne protège rien le
+ * jour où on en a besoin.
+ *
+ * CETTE GARDE NE SUFFIT PAS — et c'est écrit ici parce que le voisin l'a appris
+ * à ses dépens : elle ne retient que `main()`. Tout ce qui s'exécute au niveau
+ * du module passe AVANT elle. Le refus de configuration a donc été déplacé dans
+ * `verifierConfiguration()`, appelée par `main()` ; c'est
+ * `tests/import-sans-configuration.test.mjs` qui tient les deux côtés.
+ */
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main();
+}

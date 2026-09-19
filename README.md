@@ -365,6 +365,17 @@ compartiment est lui aussi extrait du code, pas recopié — renommer le
 compartiment dans le service fait donc échouer le contrôle, au lieu de le
 laisser vert en train de sonder un compartiment disparu.
 
+Enfin, il confronte la formulation qui désigne un objet absent — `NoSuchKey` —
+entre ce script et `src/services/documents.ts`, qui décide d'afficher « Ce
+document n'est plus disponible ». Deux copies d'une même vérité, dans deux
+fichiers qui ne peuvent pas se lire, finissent par diverger ; cette
+divergence-là serait muette, l'écran cessant simplement de reconnaître l'absence.
+Le contrôle lit le motif **dans le corps de la fonction qui décide**, et non
+n'importe où dans le fichier : la première version cherchait la chaîne dans tout
+le fichier, et falsifiée, elle restait verte sur un motif recopié dans un
+commentaire pendant que la fonction cherchait autre chose.
+`tests/accord-motif-objet-absent.test.mjs` tient les deux sens.
+
 > **Ce qui reste non vérifié.** Les chemins de **succès** de `voter` et
 > `envoyer_message` ne sont éprouvés nulle part : `securite:api` ne teste que
 > leurs refus. Les éprouver demande un sondage ouvert et un message réellement

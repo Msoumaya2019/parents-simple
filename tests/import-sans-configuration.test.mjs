@@ -1,19 +1,32 @@
 /**
- * Éprouve le contrat d'import de `scripts/verifier-securite-api.mjs` : importer
- * ce fichier ne doit RIEN exécuter.
+ * Éprouve le contrat d'import des scripts de vérification : importer ces
+ * fichiers ne doit RIEN exécuter.
  *
  * POURQUOI CE TEST EXISTE
  * -----------------------
- * Le fichier porte une garde qui n'appelle `principal()` que s'il est lancé
- * directement. Elle a été écrite exprès pour que `tests/refus-de-droit.test.mjs`
- * puisse importer `refusDeDroit` sans secrets ni réseau. Elle ne suffisait pas :
- * un `process.exit(1)` était resté au niveau du module, où il s'exécute AVANT
- * elle. Résultat en intégration continue, où la suite tourne sans secrets :
+ * `verifier-securite-api.mjs` porte une garde qui n'appelle `principal()` que
+ * s'il est lancé directement. Elle a été écrite exprès pour que
+ * `tests/refus-de-droit.test.mjs` puisse importer `refusDeDroit` sans secrets ni
+ * réseau. Elle ne suffisait pas : un `process.exit(1)` était resté au niveau du
+ * module, où il s'exécute AVANT elle. Résultat en intégration continue, où la
+ * suite tourne sans secrets :
  *
  *   # ::error::Configuration absente.
  *   # Subtest: tests/refus-de-droit.test.mjs
  *   not ok 4 - tests/refus-de-droit.test.mjs
  *   # tests 113 / # pass 112 / # fail 1
+ *
+ * LE MÊME DÉFAUT, DANS LE SCRIPT VOISIN, ET PERSONNE NE LE VOYAIT
+ * --------------------------------------------------------------
+ * `verifier-requetes-app.mjs` portait la faute à l'identique : un refus de
+ * configuration au niveau du module, et un `await main()` sans garde. Rien ne
+ * l'importait, donc rien ne le révélait — un défaut qu'aucun lecteur n'exerce
+ * reste invisible, et le lire ne suffit pas.
+ *
+ * Il a fallu l'importer pour éprouver son contrôle d'accord, dont la première
+ * version ne mesurait rien (voir `tests/accord-motif-objet-absent.test.mjs`).
+ * Ce banc couvre donc désormais les DEUX scripts : la liste est fermée, et un
+ * script ajouté demain doit y être inscrit.
  *
  * POURQUOI UN PROCESSUS ENFANT, ET POURQUOI AILLEURS
  * --------------------------------------------------
@@ -44,13 +57,15 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-/** Chemin réel, pour LANCER le fichier : Node veut un chemin, pas une URL. */
-const CHEMIN_MODULE = fileURLToPath(
-  new URL('../scripts/verifier-securite-api.mjs', import.meta.url),
-);
-
-/** URL de fichier, pour l'IMPORTER : le dossier courant ne doit rien y changer. */
-const URL_MODULE = new URL('../scripts/verifier-securite-api.mjs', import.meta.url).href;
+/**
+ * Les scripts soumis au contrat.
+ *
+ * Liste FERMÉE, comme celle des flux de travail : un script ajouté demain n'y
+ * entre pas tout seul. Un `readdirSync` mesurerait ce qui RESTE dans
+ * `scripts/`, jamais ce qui MANQUE à cette liste — et les deux scripts qui y
+ * sont aujourd'hui sont précisément ceux dont un banc importe une fonction.
+ */
+const SCRIPTS = ['verifier-securite-api.mjs', 'verifier-requetes-app.mjs'];
 
 /**
  * Environnement privé des deux variables, quelles que soient celles du parent.
@@ -91,46 +106,50 @@ function lancer(dossier, arguments_) {
   };
 }
 
-describe("contrat d'import de verifier-securite-api.mjs", () => {
-  it("importé sans configuration, ne sort pas du processus et n'écrit rien", () => {
-    const verdict = dansUnDossierVide((dossier) =>
-      lancer(dossier, [
-        '--input-type=module',
-        '--eval',
-        `await import(${JSON.stringify(URL_MODULE)});`,
-      ]),
-    );
+for (const nom of SCRIPTS) {
+  /** Chemin réel, pour LANCER le fichier : Node veut un chemin, pas une URL. */
+  const chemin = fileURLToPath(new URL(`../scripts/${nom}`, import.meta.url));
 
-    assert.equal(
-      verdict.code,
-      0,
-      `L'import a échoué (code ${verdict.code}).\n` +
-        `sortie : ${JSON.stringify(verdict.sortie)}\n` +
-        `erreur : ${JSON.stringify(verdict.erreur)}`,
-    );
-    // Le contrat n'est pas seulement « ne pas sortir en erreur » : un import ne
-    // doit RIEN écrire. Une ligne de journal au niveau du module passerait sinon
-    // inaperçue, et c'est ce genre de bruit qui finit par cacher un vrai message.
-    assert.equal(verdict.sortie, '', "L'import ne doit rien écrire sur la sortie standard.");
-    assert.equal(verdict.erreur, '', "L'import ne doit rien écrire sur la sortie d'erreur.");
+  /** URL de fichier, pour l'IMPORTER : le dossier courant ne doit rien y changer. */
+  const url = new URL(`../scripts/${nom}`, import.meta.url).href;
+
+  describe(`contrat d'import de ${nom}`, () => {
+    it("importé sans configuration, ne sort pas du processus et n'écrit rien", () => {
+      const verdict = dansUnDossierVide((dossier) =>
+        lancer(dossier, ['--input-type=module', '--eval', `await import(${JSON.stringify(url)});`]),
+      );
+
+      assert.equal(
+        verdict.code,
+        0,
+        `L'import a échoué (code ${verdict.code}).\n` +
+          `sortie : ${JSON.stringify(verdict.sortie)}\n` +
+          `erreur : ${JSON.stringify(verdict.erreur)}`,
+      );
+      // Le contrat n'est pas seulement « ne pas sortir en erreur » : un import ne
+      // doit RIEN écrire. Une ligne de journal au niveau du module passerait sinon
+      // inaperçue, et c'est ce genre de bruit qui finit par cacher un vrai message.
+      assert.equal(verdict.sortie, '', "L'import ne doit rien écrire sur la sortie standard.");
+      assert.equal(verdict.erreur, '', "L'import ne doit rien écrire sur la sortie d'erreur.");
+    });
+
+    it('lancé sans configuration, refuse et nomme les deux variables', () => {
+      const verdict = dansUnDossierVide((dossier) => lancer(dossier, [chemin]));
+
+      assert.equal(
+        verdict.code,
+        1,
+        `Le lancement aurait dû refuser (code ${verdict.code}).\n` +
+          `sortie : ${JSON.stringify(verdict.sortie)}\n` +
+          `erreur : ${JSON.stringify(verdict.erreur)}`,
+      );
+      assert.match(verdict.erreur, /Configuration absente/);
+      // Nommer les variables fait partie du contrôle : un refus qui ne dit pas
+      // quoi renseigner oblige à lire le script pour s'en servir.
+      assert.match(verdict.erreur, /EXPO_PUBLIC_SUPABASE_URL/);
+      assert.match(verdict.erreur, /EXPO_PUBLIC_SUPABASE_ANON_KEY/);
+      // Rien ne doit avoir été tenté sur le réseau : le refus précède tout appel.
+      assert.equal(verdict.sortie, '', 'Aucune requête ne doit partir sans configuration.');
+    });
   });
-
-  it('lancé sans configuration, refuse et nomme les deux variables', () => {
-    const verdict = dansUnDossierVide((dossier) => lancer(dossier, [CHEMIN_MODULE]));
-
-    assert.equal(
-      verdict.code,
-      1,
-      `Le lancement aurait dû refuser (code ${verdict.code}).\n` +
-        `sortie : ${JSON.stringify(verdict.sortie)}\n` +
-        `erreur : ${JSON.stringify(verdict.erreur)}`,
-    );
-    assert.match(verdict.erreur, /Configuration absente/);
-    // Nommer les variables fait partie du contrôle : un refus qui ne dit pas
-    // quoi renseigner oblige à lire le script pour s'en servir.
-    assert.match(verdict.erreur, /EXPO_PUBLIC_SUPABASE_URL/);
-    assert.match(verdict.erreur, /EXPO_PUBLIC_SUPABASE_ANON_KEY/);
-    // Rien ne doit avoir été tenté sur le réseau : le refus précède tout appel.
-    assert.equal(verdict.sortie, '', 'Aucune requête ne doit partir sans configuration.');
-  });
-});
+}
