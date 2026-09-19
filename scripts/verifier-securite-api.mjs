@@ -84,6 +84,33 @@ const TABLES_LISIBLES = [
  * manquante « pour réparer », et ouvrirait les messages des parents. Les deux
  * sondes ci-dessous — lecture et insertion avec la clé publique — sont ce qui
  * rend l'erreur visible si elle est commise.
+ *
+ * CE QUE CES SONDES NE PEUVENT PAS DIRE : QUE LA QUATRIÈME MIGRATION EST APPLIQUÉE
+ * ------------------------------------------------------------------------------
+ * Mesuré le 20 septembre 2026, après son application : trois sondes avec la clé
+ * publique, trois résultats nuls.
+ *
+ *   GET /rest/v1/messages?select=id&limit=1  ->  401 « permission denied for
+ *       table messages » ; le `hint` ne nomme que `anon`
+ *   GET /rest/v1/                            ->  401 — la spécification OpenAPI
+ *       est elle-même filtrée, aucune relation n'y est citée
+ *   OPTIONS /rest/v1/messages                ->  200, `Allow: GET, HEAD, POST,
+ *       OPTIONS` : réponse générique, identique quels que soient les privilèges
+ *
+ * La raison est déjà écrite dans la migration initiale :
+ * `20260917120000_init.sql` porte `revoke all on public.messages from anon,
+ * authenticated`. Le `revoke … from anon` de la nouvelle migration ne change donc
+ * RIEN pour la clé publique, et accorder des droits à `authenticated` ne se voit
+ * pas depuis `anon`. Le cache de schéma de PostgREST ne sert pas de détour : il
+ * ne contient que ce que le rôle APPELANT peut atteindre — c'est ce qui fait
+ * rendre 401 et non 404 sur `est_membre_bureau`, mais cela ne dit rien des autres
+ * rôles.
+ *
+ * C'est pourquoi ce fichier ne prétend pas couvrir cette migration. Le seul
+ * contrôle possible est un compte du bureau ouvrant l'onglet Messages de la page
+ * d'administration. Écrit ici pour que personne ne « répare » ce trou en
+ * fabriquant une identité de production : le coût dépasse la preuve, et c'est un
+ * choix assumé, pas un oubli.
  */
 const TABLES_FERMEES = ['messages', 'sondage_votes', 'membres_bureau'];
 
