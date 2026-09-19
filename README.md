@@ -162,8 +162,23 @@ fichier qui n'est pas celui qu'on croit se voit là.
 > des colonnes qui n'existent pas, et PostgREST refuse la lecture entière plutôt
 > que de rendre les colonnes connues.
 
-Tous les fichiers sont écrits pour pouvoir être rejoués : les relancer sur une
-base à jour ne produit ni erreur ni doublon.
+**Les deux fichiers ajoutés après le premier sont rejouables.** `if not exists`
+partout où PostgreSQL le permet, un bloc `do` pour les types qui n'ont pas cette
+option, et un `drop policy if exists` avant chaque `create policy`. Les relancer
+sur une base à jour ne produit ni erreur ni doublon.
+
+`20260917120000_init.sql`, lui, **n'est pas rejouable** — et il faut le savoir
+avant de le renvoyer. Il crée ses types, ses tables, ses index, ses déclencheurs et
+ses politiques sans une seule garde : mesuré, zéro `if not exists`, zéro
+`drop … if exists`, zéro bloc `do`. Relancé, il s'arrête sur sa première
+instruction — `create type public.message_categorie as enum` — que PostgreSQL
+refuse deux fois : `42710: type "message_categorie" already exists`.
+
+Ce n'est pas un défaut à corriger : le fichier est appliqué partout, et le rendre
+rejouable demanderait de le réécrire en entier. C'est une raison de plus
+d'appliquer **un fichier à la fois**, et de ne jamais renvoyer celui-là. Le banc
+`tests/rejouabilite-des-migrations.test.mjs` tient cet accord : toute migration
+ajoutée doit être rejouable, et tout fichier excepté doit être nommé ici.
 
 > **La compilation aussi s'arrête.** Une compilation lancée avant d'avoir
 > appliqué la migration échoue **en une minute**, sur l'étape « Éprouver la base
