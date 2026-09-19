@@ -26,7 +26,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText, Card, ImageDistante, LienAction, Pill } from '@/components/ui';
 import { extraire } from '@/lib/extrait';
-import { CATEGORIES_ANNONCE, adresseImage } from '@/services/annonces';
+import { CATEGORIES_ANNONCE, INDICATEUR_IMPORTANT, adresseImage } from '@/services/annonces';
 import { useTheme } from '@/providers/theme-provider';
 import type { Annonce } from '@/types/models';
 import { depuis } from '@/utils/date';
@@ -61,7 +61,7 @@ export function AnnonceCard({ annonce, onPress }: AnnonceCardProps): React.JSX.E
         <View style={styles.colonne}>
           <View style={[styles.entete, { gap: theme.spacing.sm }]}>
             <Pill libelle={categorie.libelle} ton={categorie.ton} icone={categorie.icone} />
-            {annonce.epinglee ? <Pill libelle="Important" ton="corail" icone="megaphone" /> : null}
+            {annonce.epinglee ? <Pill {...INDICATEUR_IMPORTANT} /> : null}
           </View>
 
           <AppText variant="subtitle" style={styles.titre} numberOfLines={3}>

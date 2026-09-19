@@ -20,7 +20,7 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppText, Card, ImageDistante, LienAction, Pill } from '@/components/ui';
-import { CATEGORIES_ANNONCE, adresseImage } from '@/services/annonces';
+import { CATEGORIES_ANNONCE, INDICATEUR_IMPORTANT, adresseImage } from '@/services/annonces';
 import { extraire } from '@/lib/extrait';
 import { useTheme } from '@/providers/theme-provider';
 import type { Annonce } from '@/types/models';
@@ -53,7 +53,7 @@ export function AnnonceEnAvant({ annonce, onPress }: AnnonceEnAvantProps): React
             portent leur catégorie. Les afficher toutes les deux sur la même
             ligne donnerait deux pastilles pour une seule information. */}
         {annonce.epinglee ? (
-          <Pill libelle="Important" ton="corail" icone="megaphone" />
+          <Pill {...INDICATEUR_IMPORTANT} />
         ) : (
           <Pill libelle={categorie.libelle} ton={categorie.ton} icone={categorie.icone} />
         )}

@@ -140,3 +140,24 @@ export const CATEGORIES_ANNONCE: Readonly<
   a_venir: { libelle: 'À venir', ton: 'bleu', icone: 'time' },
   association: { libelle: 'Association', ton: 'corail', icone: 'people' },
 });
+
+/**
+ * L'indicateur d'importance, écrit une fois.
+ *
+ * IL PARAISSAIT TROIS FOIS, ET LES TROIS NE DISAIENT PAS LA MÊME CHOSE
+ * --------------------------------------------------------------------
+ * Deux écrans de l'accueil — la carte de tête et la carte de liste — portaient
+ * le corail et le porte-voix ; l'écran de détail portait l'accent, sans icône.
+ * Le même mot annonçait donc deux choses différentes selon l'endroit où on
+ * lisait l'actualité — exactement ce que la table ci-dessus existe pour
+ * empêcher, et qui était arrivé faute de table.
+ *
+ * Il vit ici, avec les catégories, pour la même raison : un libellé, un ton et
+ * une icône qui se recopient d'un écran à l'autre finissent par diverger, et
+ * personne ne s'en aperçoit avant de comparer deux captures d'écran.
+ */
+export const INDICATEUR_IMPORTANT = Object.freeze({
+  libelle: 'Important',
+  ton: 'corail',
+  icone: 'megaphone',
+} as const);

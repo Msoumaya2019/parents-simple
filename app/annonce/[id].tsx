@@ -13,7 +13,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText, EmptyState, ErrorNotice, LoadingView, Pill, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
-import { obtenirAnnonce } from '@/services/annonces';
+import { INDICATEUR_IMPORTANT, obtenirAnnonce } from '@/services/annonces';
 import { useTheme } from '@/providers/theme-provider';
 import type { Annonce } from '@/types/models';
 import { dateLongue, depuis } from '@/utils/date';
@@ -93,7 +93,7 @@ export default function AnnonceDetailScreen(): React.JSX.Element {
           <AppText variant="caption" color="muted">
             {depuis(annonce.publieeLe)}
           </AppText>
-          {annonce.epinglee ? <Pill libelle="Important" ton="accent" /> : null}
+          {annonce.epinglee ? <Pill {...INDICATEUR_IMPORTANT} /> : null}
         </View>
 
         <AppText variant="title" style={styles.titre}>
