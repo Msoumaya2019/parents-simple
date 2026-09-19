@@ -15,9 +15,13 @@
  * fichier est donc interrogé avant, et son absence signalée dans
  * l'application — plutôt que par un JSON d'erreur dans un onglet.
  *
- * Le contrôle ne bloque que sur une preuve positive d'absence (`NoSuchKey`).
- * Un statut inattendu laisse l'ouverture se faire : refuser un document qui
- * existe serait pire que d'afficher une erreur de navigateur.
+ * Le contrôle ne bloque que sur une preuve positive d'absence : le signal
+ * `NoSuchKey` de Supabase Storage, reconnu par son code **ou** par le texte
+ * `Object not found` de sa réponse — `fichierAbsent` accepte les deux, et
+ * `scripts/verifier-requetes-app.mjs` compare sa formulation à celle du service
+ * pour que les deux ne divergent pas. Un statut inattendu laisse l'ouverture se
+ * faire : refuser un document qui existe serait pire que d'afficher une erreur
+ * de navigateur.
  */
 
 import { Ionicons } from '@expo/vector-icons';
