@@ -62,10 +62,22 @@ import { fileURLToPath } from 'node:url';
  *
  * Liste FERMÉE, comme celle des flux de travail : un script ajouté demain n'y
  * entre pas tout seul. Un `readdirSync` mesurerait ce qui RESTE dans
- * `scripts/`, jamais ce qui MANQUE à cette liste — et les deux scripts qui y
- * sont aujourd'hui sont précisément ceux dont un banc importe une fonction.
+ * `scripts/`, jamais ce qui MANQUE à cette liste — et les scripts qui y sont
+ * aujourd'hui sont précisément ceux dont un banc importe une fonction.
+ *
+ * `verifier-inscription.mjs` y est entré avec `verdict-inscription.test.mjs`,
+ * qui importe `verdictSurInscription`. C'est la règle de ce fichier, appliquée
+ * au moment où elle servait : le défaut qu'il éprouve ne se manifeste QUE là où
+ * la configuration manque, c'est-à-dire jamais sur la machine du développeur.
+ * Un script ajouté sans être inscrit ici serait donc un défaut invisible en
+ * local et rouge en intégration continue — le rouge que ce banc existe pour
+ * rendre impossible.
  */
-const SCRIPTS = ['verifier-securite-api.mjs', 'verifier-requetes-app.mjs'];
+const SCRIPTS = [
+  'verifier-securite-api.mjs',
+  'verifier-requetes-app.mjs',
+  'verifier-inscription.mjs',
+];
 
 /**
  * Environnement privé des deux variables, quelles que soient celles du parent.

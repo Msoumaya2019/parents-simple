@@ -449,13 +449,50 @@ commentaire pendant que la fonction cherchait autre chose.
 > `supabase/exemple-contenu.sql` crée justement un sondage ouvert, pour que ce
 > chemin puisse être éprouvé à la main en attendant.
 
-Les deux contrôles exigent une configuration et ne font donc pas partie de
-`npm run verify`, qui doit tourner sans aucun secret. **Trois flux de travail les
-exécutent** : `ci.yml` à chaque poussée vers `main`, et les deux flux de mise
-à disposition **avant de compiler**. On ne produit ni un APK ni un IPA pour une
-base ouverte, ni pour une base que l'application ne sait pas interroger. Le
-quatrième, `admin-pages.yml`, publie la page d'administration : il n'éprouve pas
-la base, et n'a donc besoin d'aucun secret.
+### Vérifier que l'inscription publique est fermée
+
+```bash
+npm run verifier:inscription
+```
+
+Les deux contrôles précédents ne peuvent pas voir ceci : **Supabase ouvre
+l'inscription publique par défaut**. N'importe qui peut donc créer un compte et
+obtenir le rôle `authenticated` — celui-là même que visent les politiques
+d'écriture du bureau. Le rôle ne dit pas qui est la personne ; ce qui retient
+l'écriture est `public.est_membre_bureau()`, et rien d'autre.
+
+C'est la mesure qui a motivé ce troisième contrôle : **au 20 septembre 2026,
+`disable_signup` valait `false`**. Rien dans le dépôt ne le disait, et aucun des
+deux autres contrôles ne pouvait le dire — `securite:api` interroge la base avec
+la clé publique, qui n'est jamais `authenticated`.
+
+Le script lit `GET /auth/v1/settings`, que la clé publique suffit à lire : il
+décrit la configuration du service, pas les personnes inscrites. La vérification
+se fait donc **sans créer de compte**, ce que ce projet s'interdit par principe.
+Il affiche aussi `mailer_autoconfirm` : quand il vaut `false`, un compte créé par
+le bureau doit être confirmé à la main, par la case « Auto Confirm User ».
+
+Le verdict a **trois** valeurs, et non deux — `fermee`, `ouverte`, `inconnue`.
+Un champ absent, une réponse vide, un `404` : dans ces cas le script refuse de
+conclure au lieu d'annoncer « ouverte » sur la foi d'une réponse qu'il n'a pas
+sue lire. `tests/verdict-inscription.test.mjs` verrouille les trois, et
+notamment le `'true'` textuel, refusé : tolérer une autre sérialisation ferait
+passer le contrôle au vert le jour où le service changerait de format.
+
+> **Ce contrôle ne tourne PAS dans les flux de travail, et c'est délibéré.**
+> L'état de l'inscription est une configuration, pas le schéma : il se change
+> dans une page, et il est aujourd'hui ouvert. L'ajouter à l'intégration continue
+> la rendrait rouge pour une raison que seul le bureau peut corriger — et un
+> rouge permanent finit par ne plus être lu, ce que ce dépôt a déjà payé une
+> fois. Il se lance à la main, avant de distribuer une version.
+
+Les contrôles qui interrogent la base exigent une configuration et ne font donc
+pas partie de `npm run verify`, qui doit tourner sans aucun secret. **Trois flux
+de travail exécutent les deux premiers** : `ci.yml` à chaque poussée vers `main`,
+et les deux flux de mise à disposition **avant de compiler**. On ne produit ni un
+APK ni un IPA pour une base ouverte, ni pour une base que l'application ne sait
+pas interroger. Le quatrième, `admin-pages.yml`, publie la page d'administration :
+il n'éprouve pas la base, et n'a donc besoin d'aucun secret.
 
 > **Conséquence à connaître** : `securite:api` échoue tant que la migration
 > `20260918001000_membres_bureau.sql` n'est pas appliquée — la table

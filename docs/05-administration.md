@@ -120,6 +120,27 @@ suffit déjà à empêcher toute écriture ; fermer l'inscription supprime en pl
 possibilité de créer un compte. On garde les deux : si quelqu'un rallume
 l'inscription un jour, la liste tient toujours.
 
+### Vérifier que c'est bien fermé
+
+```
+npm run verifier:inscription
+```
+
+**Mesuré le 20 septembre 2026 : l'inscription était encore OUVERTE**
+(`disable_signup = false`). Ce n'est pas une supposition : c'est la réponse de
+`GET /auth/v1/settings`, que la clé publique suffit à lire — donc sans créer de
+compte.
+
+Attendu après l'avoir fermée : `disable_signup = true`, et le script se tait en
+sortant sur `0`. Tant que la valeur est `false`, il sort sur `1` et nomme la
+conséquence — n'importe qui peut obtenir le rôle `authenticated`, ce qui ne
+laisse aux politiques d'écriture que la seule garde `est_membre_bureau()`.
+
+Le script affiche aussi `mailer_autoconfirm`. S'il vaut `false` — c'est le cas
+aujourd'hui —, c'est normal et sans rapport : cela signifie qu'un compte créé
+par le bureau à l'étape suivante doit être confirmé à la main, par la case
+**« Auto Confirm User »**.
+
 ---
 
 ## 3. Créer les comptes du bureau

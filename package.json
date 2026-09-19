@@ -23,6 +23,7 @@
     "workflows:check": "node scripts/check-workflows.mjs",
     "securite:api": "node scripts/verifier-securite-api.mjs",
     "verifier:requetes": "node scripts/verifier-requetes-app.mjs",
+    "verifier:inscription": "node scripts/verifier-inscription.mjs",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-alias.mjs --test",
     "export:android": "expo export --platform android",
     "export:ios": "expo export --platform ios",
