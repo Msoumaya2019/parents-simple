@@ -1,8 +1,11 @@
 /**
- * Les migrations sont-elles rejouables — et le README dit-il la vérité là-dessus ?
+ * Le SQL que ce projet fait appliquer à la main est-il rejouable — et les
+ * documents qui en parlent disent-ils la vérité ?
  *
  * POURQUOI CE BANC EXISTE
  * -----------------------
+ * Deux fichiers, deux formes, une même garantie annoncée et jamais tenue.
+ *
  * Le README affirmait, sans nuance :
  *
  *   « Tous les fichiers sont écrits pour pouvoir être rejoués : les relancer sur
@@ -15,13 +18,19 @@
  * instruction, `create type public.message_categorie as enum`, que PostgreSQL
  * refuse deux fois (`42710: type "message_categorie" already exists`).
  *
+ * Et `supabase/exemple-contenu.sql` — que le README invite à exécuter, et dont
+ * l'en-tête promet « le script peut être relancé sans dommage » — tient sa
+ * promesse par six `on conflict`. Rien ne le vérifiait : il suffisait qu'une
+ * insertion perde sa clause pour qu'une seconde exécution s'arrête sur une
+ * violation de clé primaire, au moment précis où on essaie l'application.
+ *
  * L'affirmation n'était pas seulement inexacte, elle était DANGEREUSE : l'outil
  * `scripts/appliquer-migration.mjs` n'a aucun historique de migration — c'est ce
  * qui le distingue de `supabase db push` — et applique exactement le fichier
  * qu'on lui nomme. Un lecteur qui croyait pouvoir renvoyer n'importe quoi pour
  * « vérifier » se heurtait à une erreur qui ne dit pas ce qu'elle est.
  *
- * C'est le défaut de ce dépôt, rencontré onze fois : un document attribue à un
+ * C'est le défaut de ce dépôt, rencontré douze fois : un document attribue à un
  * fichier une garantie que ce fichier ne porte pas.
  *
  * CE QUE CE BANC TIENT
@@ -32,13 +41,15 @@
  *      couvrirait rien fait échouer le banc.
  *   2. Chaque exception est nommée dans le README, dans un paragraphe qui dit
  *      qu'elle n'est pas rejouable ET qui porte sa preuve.
+ *   3. Chaque `insert` de `supabase/exemple-contenu.sql` porte sa clause
+ *      `on conflict`, sans quoi la seconde exécution échoue.
  *
  * CE QU'IL NE PROUVE PAS
  * ----------------------
  * Il lit des MOTIFS, il ne comprend pas le SQL. Un `create table` écrit dans un
  * bloc `do` exécuté dynamiquement lui échapperait, et il ne dit rien de la
- * rejouabilité d'un `insert` ou d'un `alter table`. Le seul contrôle qui tranche
- * sur ce qu'une base porte est celui qui l'interroge : `npm run securite:api` et
+ * rejouabilité d'un `alter table`. Le seul contrôle qui tranche sur ce qu'une
+ * base porte est celui qui l'interroge : `npm run securite:api` et
  * `npm run verifier:requetes`.
  *
  * Exécution : `npm test`
@@ -273,4 +284,81 @@ describe('Le README nomme chaque exception, et porte sa preuve', () => {
       );
     });
   }
+});
+
+/**
+ * Le contenu d'exemple, que le README invite à coller dans l'éditeur SQL.
+ *
+ * Il n'est pas dans `supabase/migrations/` : `sql:check` ne le lit pas, il ne
+ * s'applique jamais tout seul, et c'est le seul fichier que ce projet demande
+ * explicitement à un humain d'exécuter deux fois — la première pour essayer,
+ * la seconde parce qu'il doute.
+ */
+const CONTENU_EXEMPLE = new URL('../supabase/exemple-contenu.sql', import.meta.url);
+
+/**
+ * Les insertions qui n'ont pas de clause `on conflict`.
+ *
+ * Chaque `insert` du fichier porte des identifiants explicites. Sans clause de
+ * conflit, une seconde exécution s'arrête sur une violation de clé primaire —
+ * c'est-à-dire au moment précis où quelqu'un essaie l'application.
+ *
+ * La fenêtre d'examen va d'une insertion à la **suivante**, jamais jusqu'à la fin
+ * du fichier : sans cette borne, la clause d'une insertion couvrirait l'absence
+ * de sa voisine, et le contrôle serait muet sur le cas qu'il existe pour
+ * attraper.
+ */
+function insertionsSansClauseDeConflit(source) {
+  const texte = sansCommentaires(source);
+  const departs = [...texte.matchAll(/\binsert\s+into\s+([a-z0-9_."]+)/gi)];
+  const fautives = [];
+  for (const [i, depart] of departs.entries()) {
+    const fin = departs[i + 1]?.index ?? texte.length;
+    if (!/\bon\s+conflict\b/i.test(texte.slice(depart.index, fin))) fautives.push(depart[1]);
+  }
+  return fautives;
+}
+
+describe('Le contenu d’exemple peut être relancé', () => {
+  const source = readFileSync(CONTENU_EXEMPLE, 'utf8');
+
+  it('le fichier porte bien des insertions à examiner', () => {
+    // Un fichier vidé de ses insertions rendrait l'essai suivant vert en ne
+    // lisant rien — l'état « vert en ne lisant rien », le pire des états.
+    const nombre = [...sansCommentaires(source).matchAll(/\binsert\s+into\b/gi)].length;
+    assert.ok(nombre >= 6, `insertions trouvées : ${nombre} — le fichier a-t-il été vidé ?`);
+  });
+
+  it('chaque insertion porte sa clause de conflit', () => {
+    assert.deepEqual(
+      insertionsSansClauseDeConflit(source),
+      [],
+      'une insertion sans `on conflict` ferait échouer la seconde exécution sur une ' +
+        'violation de clé primaire.',
+    );
+  });
+
+  it('la règle refuse une insertion sans clause', () => {
+    // Sans ce cas, une fonction qui rendrait toujours une liste vide passerait
+    // l'essai précédent sans rien mesurer.
+    const fautive = "insert into public.annonces (id, titre) values (1, 'x');";
+    assert.deepEqual(insertionsSansClauseDeConflit(fautive), ['public.annonces']);
+  });
+
+  it('elle ne prend pas la clause de la voisine pour la sienne', () => {
+    const deux = [
+      'insert into public.a (id) values (1);',
+      'insert into public.b (id) values (2)',
+      'on conflict do nothing;',
+    ].join('\n');
+    assert.deepEqual(insertionsSansClauseDeConflit(deux), ['public.a']);
+  });
+
+  it('elle reconnaît les deux formes de clause', () => {
+    const lesDeux = [
+      'insert into public.a (id) values (1) on conflict do nothing;',
+      'insert into public.b (id) values (2) on conflict (id) do update set x = 1;',
+    ].join('\n');
+    assert.deepEqual(insertionsSansClauseDeConflit(lesDeux), []);
+  });
 });

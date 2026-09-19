@@ -177,8 +177,9 @@ refuse deux fois : `42710: type "message_categorie" already exists`.
 Ce n'est pas un défaut à corriger : le fichier est appliqué partout, et le rendre
 rejouable demanderait de le réécrire en entier. C'est une raison de plus
 d'appliquer **un fichier à la fois**, et de ne jamais renvoyer celui-là. Le banc
-`tests/rejouabilite-des-migrations.test.mjs` tient cet accord : toute migration
-ajoutée doit être rejouable, et tout fichier excepté doit être nommé ici.
+`tests/rejouabilite-du-sql.test.mjs` tient cet accord : toute migration ajoutée
+doit être rejouable, tout fichier excepté doit être nommé ici, et chaque insertion
+de `supabase/exemple-contenu.sql` doit porter sa clause `on conflict`.
 
 > **La compilation aussi s'arrête.** Une compilation lancée avant d'avoir
 > appliqué la migration échoue **en une minute**, sur l'étape « Éprouver la base
