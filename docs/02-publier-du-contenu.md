@@ -361,6 +361,16 @@ parent ne peut pas lire ce qu'un autre a écrit.
 
 Table Editor → table `messages`, trier sur `created_at` décroissant.
 
+> **Ce que cet accès demande, et pourquoi il faut le savoir.** Ouvrir le Table
+> Editor suppose un **compte Supabase ayant accès au projet** — ce n'est pas le
+> compte du bureau utilisé pour la page d'administration. La différence de
+> portée est considérable : qui peut ouvrir le Table Editor peut aussi modifier
+> le schéma, lire toutes les autres tables et changer les politiques. La lecture
+> des messages passe donc aujourd'hui par un accès plus large que le strict
+> nécessaire. C'est le prix de la simplicité — aucune politique supplémentaire à
+> maintenir — et il se paie en nombre de personnes à qui l'on donne les clés du
+> projet.
+
 | Colonne     | Signification                                                             |
 | ----------- | ------------------------------------------------------------------------- |
 | `sujet`     | L'objet du message                                                        |
