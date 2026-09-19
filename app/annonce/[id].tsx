@@ -22,10 +22,20 @@ import { dateLongue, depuis } from '@/utils/date';
  * Relit un paramètre d'adresse sous forme de chaîne.
  *
  * `useLocalSearchParams` rend une chaîne, ou un tableau de chaînes si le
- * segment est répété dans l'adresse. Le type générique du crochet, lui, est
- * contraint à `string` : on ne peut donc pas lui demander la forme exacte
- * attendue. On accepte la valeur telle qu'elle vient et on la ramène à une
- * chaîne, plutôt que de faire une assertion qui masquerait le cas du tableau.
+ * segment est répété dans l'adresse — et le type le dit : son paramètre
+ * générique est contraint à `Record<string, string | string[]>`.
+ *
+ * ON POURRAIT LE LUI DIRE, ET C'EST POUR CELA QU'ON NE LE FAIT PAS.
+ * Le crochet accepte aussi le chemin de la route, et rend alors la forme
+ * **déclarée** pour cette route — `useLocalSearchParams<'/annonce/[id]'>()`.
+ * Ce serait une ASSERTION sur une valeur qui vient d'une adresse, pas une
+ * vérification : le jour où le segment est répété, le type affirmerait une
+ * chaîne sur un tableau, et l'identifiant partirait en requête sans que rien
+ * ne le signale.
+ *
+ * On prend donc la valeur en `unknown` et on la ramène à une chaîne. C'est le
+ * seul endroit du projet où le type d'entrée est volontairement inconnu, et
+ * c'est parce que la valeur ne vient pas du code.
  */
 function premierParametre(valeur: unknown): string {
   if (typeof valeur === 'string') {

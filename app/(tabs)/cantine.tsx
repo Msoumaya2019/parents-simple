@@ -13,7 +13,11 @@
  * ---------------------------------
  * Mercredi, samedi et dimanche n'ont en général pas de menu, et un jour férié
  * non plus. Les passer sous silence ferait croire à un défaut d'affichage. Ils
- * apparaissent donc, avec la mention « Pas de cantine ».
+ * apparaissent donc, avec une mention qui distingue **deux** situations :
+ * « Pas de cantine ce jour-là. » quand la base ne porte aucune ligne pour ce
+ * jour, et « Menu non renseigné. » quand la ligne existe mais est vide — le
+ * repas est prévu, on ne sait pas encore ce qu'il contient. Les confondre
+ * ferait passer un retard de publication pour une fermeture.
  *
  * LA SEMAINE AFFICHÉE N'EST PAS TOUJOURS CELLE D'AUJOURD'HUI
  * ----------------------------------------------------------
