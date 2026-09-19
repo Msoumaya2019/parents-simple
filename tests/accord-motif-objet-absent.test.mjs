@@ -43,6 +43,33 @@
  * réseau du script s'en charge, et lui seul peut le faire. Ce banc-ci tient
  * l'accord entre deux fichiers qui ne peuvent pas se lire.
  *
+ * POURQUOI `fichierAbsent` N'EST ÉPROUVÉ SUR AUCUN CAS, ET POURQUOI LE DÉPLACER
+ * N'ACHÈTERAIT RIEN
+ * ----------------------------------------------------------------------------
+ * Ce n'est pas un oubli. Deux raisons, toutes deux mesurées.
+ *
+ * D'abord, le module ne se charge pas hors de l'application :
+ * `src/services/documents.ts` tire `src/services/client.ts`, qui tire
+ * `src/config/supabase.ts`, dont le premier geste est
+ * `import 'react-native-url-polyfill/auto'` — un point d'entrée que Node ne
+ * résout pas (`ERR_MODULE_NOT_FOUND`). Un banc de cas demanderait donc de sortir
+ * la règle dans un module qui n'importe rien, comme `src/lib/choix-retenu.ts`.
+ *
+ * Ensuite, la falsification dit que cela n'apprendrait rien. Neuf mutations de
+ * la fonction — verdict inversé, toujours vrai, toujours faux, motif élargi,
+ * motif raccourci, drapeau `i` retiré, casse changée sans drapeau, motif recopié
+ * dans un commentaire, corps mis sur plusieurs lignes — rougissent toutes ce
+ * banc. La seule qui reste verte ajoute un commentaire dans le corps, et c'est
+ * bien celle qui doit rester verte. Le sens de `fichierAbsent` EST son motif, et
+ * ce banc épingle ce motif-là, dans le corps qui décide.
+ *
+ * La neuvième mérite d'être nommée : mettre le corps sur plusieurs lignes ne
+ * change pas le verdict, mais `prettier --check` la refuse déjà — la ligne fait
+ * 51 caractères pour une largeur de 100. Le premier cas de mutation s'ancre sur
+ * la ligne entière, donc il perd sa cible, et le garde-fou « les mutations du
+ * banc ne sont pas inertes » le dit : « son motif ne correspond plus ». Un rouge
+ * qui demande de remettre l'ancre à jour, pas un désaccord.
+ *
  * Exécution : `npm test`
  */
 
