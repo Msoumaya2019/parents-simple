@@ -343,6 +343,26 @@ select c.libelle, count(v.id) as voix
  order by c.position;
 ```
 
+### Ce que voit un parent qui a déjà répondu
+
+L'accueil propose **le plus récent des sondages ouverts** ; l'onglet Plus les
+affiche tous. Une fois qu'un parent a répondu depuis son appareil, la carte de
+l'accueil change de mots : « Votre réponse est enregistrée », et sa pastille
+propose « Résultats » au lieu de « Participer ». Dans l'onglet Plus, les choix
+deviennent inactifs et le décompte s'affiche.
+
+Ce n'est pas cosmétique. L'application n'a pas de compte : la seule trace d'un
+vote est celle que l'appareil garde de lui-même, et c'est elle que lisent les
+deux écrans. Un accueil qui continuerait d'inviter à répondre après coup
+annoncerait une action qui n'existe plus.
+
+La carte **ne disparaît pas** pour autant : un parent peut vouloir relire les
+résultats. Elle cesse seulement de promettre ce qu'elle ne peut plus tenir.
+
+Pour remettre un appareil à zéro — refaire l'essai, ou rendre le vote à
+quelqu'un — il faut **désinstaller et réinstaller** l'application : la mémoire
+locale part avec elle, et l'appareil redevient un nouvel électeur.
+
 ### Ce qu'un sondage ne peut pas faire
 
 Un parent peut voter une seconde fois en désinstallant puis réinstallant

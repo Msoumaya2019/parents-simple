@@ -20,11 +20,20 @@
  * l'écran, comme sur la maquette, tout en laissant les cartes en retrait. Une
  * marge posée une fois pour toutes sur le conteneur aurait obligé à en sortir
  * par un contre-style négatif, ce qui se casse au premier changement de marge.
+ *
+ * POURQUOI LES VOTES DE L'APPAREIL SONT RELUS À CHAQUE RETOUR
+ * ----------------------------------------------------------
+ * La carte de sondage de l'accueil ne savait rien des votes de l'appareil :
+ * elle invitait à répondre, même après qu'on ait répondu. Lire la mémoire
+ * locale une fois au montage n'aurait pas suffi — cet écran reste monté quand
+ * on passe à l'onglet Plus, où le vote a lieu. Un parent qui votait puis
+ * revenait à l'accueil retrouvait donc l'invitation d'avant. C'est la relecture
+ * au retour sur l'écran, et non la lecture initiale, qui rend la carte vraie.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import { AccesRapide } from '@/components/AccesRapide';
 import { AnnonceCard } from '@/components/AnnonceCard';
@@ -34,15 +43,18 @@ import { SondageAccueil } from '@/components/SondageAccueil';
 import { EmptyState, ErrorNotice, LoadingView, Screen } from '@/components/ui';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRafraichissement } from '@/hooks/useRafraichissement';
+import { invitationAccueil } from '@/lib/sondage-accueil';
+import { lireVotesLocaux } from '@/lib/votes-locaux';
 import { listerAnnonces } from '@/services/annonces';
 import { listerSondages } from '@/services/sondages';
 import { useTheme } from '@/providers/theme-provider';
 import type { Annonce, Sondage } from '@/types/models';
-import { sondageFerme } from '@/utils/date';
 
 export default function AccueilScreen(): React.JSX.Element {
   const { theme } = useTheme();
   const router = useRouter();
+
+  const [votes, setVotes] = useState<Record<string, string>>({});
 
   const { etat, enCours, recharger } = useAsyncData<readonly Annonce[]>('annonces', () =>
     listerAnnonces(),
@@ -64,6 +76,23 @@ export default function AccueilScreen(): React.JSX.Element {
     rechargerTout,
   );
 
+  // Le garde `actif` empêche d'écrire un état après la perte du foyer : la
+  // lecture est asynchrone, et le parent peut avoir quitté l'écran entre-temps.
+  useFocusEffect(
+    useCallback(() => {
+      let actif = true;
+      void (async () => {
+        const table = await lireVotesLocaux();
+        if (actif) {
+          setVotes(table);
+        }
+      })();
+      return () => {
+        actif = false;
+      };
+    }, []),
+  );
+
   const ouvrirAnnonce = useCallback(
     (id: string) => {
       router.push(`/annonce/${id}`);
@@ -76,14 +105,10 @@ export default function AccueilScreen(): React.JSX.Element {
   // autant d'occasions de diverger.
   const annonces = etat.statut === 'succes' ? etat.donnees : [];
 
-  // Un sondage déjà clôturé ne mérite pas une invitation : le parent ne pourrait
-  // qu'y constater un résultat. On ne propose que ce à quoi on peut répondre.
-  const sondageOuvert =
-    sondages.etat.statut === 'succes'
-      ? (sondages.etat.donnees.find(
-          (candidat) => !sondageFerme(candidat.ouvert, candidat.clotureLe),
-        ) ?? null)
-      : null;
+  // Ce que l'accueil propose, et ce qu'il en dit. La règle est dans
+  // `@/lib/sondage-accueil` : elle sait, elle, si l'appareil a déjà répondu.
+  const invitation =
+    sondages.etat.statut === 'succes' ? invitationAccueil(sondages.etat.donnees, votes) : null;
 
   const marge = { paddingHorizontal: theme.spacing.lg };
 
@@ -191,11 +216,11 @@ export default function AccueilScreen(): React.JSX.Element {
           </View>
         }
         ListFooterComponent={
-          sondageOuvert === null ? null : (
+          invitation === null ? null : (
             <View style={[marge, { marginTop: theme.spacing.md }]}>
               <SondageAccueil
-                sondage={sondageOuvert}
-                onParticiper={() => {
+                invitation={invitation}
+                onOuvrir={() => {
                   router.push('/plus');
                 }}
               />

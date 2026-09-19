@@ -1,6 +1,13 @@
 /**
  * L'invitation à répondre au sondage, sur l'accueil.
  *
+ * CE COMPOSANT NE CHOISIT NI LE SONDAGE NI LES MOTS
+ * -------------------------------------------------
+ * Il reçoit une `InvitationSondage` déjà décidée, et se contente de la
+ * dessiner. La règle vit dans `@/lib/sondage-accueil`, hors de tout composant,
+ * parce qu'elle a une raison d'être éprouvée : elle dépend de ce que
+ * l'appareil sait de ses propres votes.
+ *
  * ELLE N'APPARAÎT QUE S'IL Y A UN SONDAGE OUVERT
  * ----------------------------------------------
  * C'est la règle demandée, et c'est aussi la seule tenable : une carte
@@ -14,38 +21,33 @@
  * Le vote vit dans l'onglet Plus, avec ses choix, ses résultats et ses règles —
  * les scores n'apparaissent qu'après avoir voté, pour ne pas orienter la
  * réponse. Redessiner tout cela sur l'accueil donnerait deux écrans de vote à
- * maintenir, et deux occasions de les faire diverger.
+ * maintenir, et deux occasions de les faire diverger. C'est d'ailleurs ainsi
+ * que la carte a menti : elle ignorait les votes de l'appareil, que seul
+ * l'onglet Plus lisait, et invitait encore à répondre après coup.
  */
 
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppText, Card } from '@/components/ui';
+import type { InvitationSondage } from '@/lib/sondage-accueil';
 import { useTheme } from '@/providers/theme-provider';
-import type { Sondage } from '@/types/models';
-
-/**
- * L'accroche de la carte.
- *
- * Écrite ici, comme la formule de la bannière : elle ne change pas, et lui
- * donner une table serait plus de travail que de la modifier.
- */
-const ACCROCHE = 'Votre avis nous intéresse';
 
 interface SondageAccueilProps {
-  readonly sondage: Sondage;
-  readonly onParticiper: () => void;
+  readonly invitation: InvitationSondage;
+  readonly onOuvrir: () => void;
 }
 
-export function SondageAccueil({ sondage, onParticiper }: SondageAccueilProps): React.JSX.Element {
+export function SondageAccueil({ invitation, onOuvrir }: SondageAccueilProps): React.JSX.Element {
   const { theme } = useTheme();
   const violet = theme.colors.pastels.violet;
+  const { sondage, accroche, action, indication } = invitation;
 
   return (
     <Card
-      onPress={onParticiper}
+      onPress={onOuvrir}
       accessibilityLabel={`Sondage : ${sondage.question}`}
-      accessibilityHint="Ouvre le sondage pour répondre"
+      accessibilityHint={indication}
       style={{ backgroundColor: violet.fond, borderColor: violet.fond }}
     >
       <View style={[styles.rangee, { gap: theme.spacing.md }]}>
@@ -64,7 +66,7 @@ export function SondageAccueil({ sondage, onParticiper }: SondageAccueilProps): 
               séparément, donc cette chaîne n'est jamais lue telle quelle — ce
               qui évite qu'un lecteur d'écran l'épelle lettre par lettre. */}
           <AppText variant="caption" style={{ color: violet.encre }}>
-            {ACCROCHE.toLocaleUpperCase('fr-FR')}
+            {accroche.toLocaleUpperCase('fr-FR')}
           </AppText>
 
           <AppText variant="subtitle" style={styles.question} numberOfLines={3}>
@@ -86,7 +88,7 @@ export function SondageAccueil({ sondage, onParticiper }: SondageAccueilProps): 
           style={[styles.bouton, { backgroundColor: violet.encre, borderRadius: theme.radii.pill }]}
         >
           <AppText variant="label" color="onAccent">
-            Participer
+            {action}
           </AppText>
         </View>
       </View>

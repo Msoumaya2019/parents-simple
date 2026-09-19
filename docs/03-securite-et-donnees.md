@@ -323,12 +323,12 @@ base ouverte.
 
 ### Ce qui est conservé sur le téléphone
 
-| Donnée                 | Rôle                            | Portée                     |
-| ---------------------- | ------------------------------- | -------------------------- |
-| Identifiant de vote    | Éviter le double vote           | Envoyé avec chaque vote    |
-| Identifiant d'appareil | Limiter la cadence des messages | Envoyé avec chaque message |
-| Préférence de thème    | Confort d'affichage             | Jamais transmise           |
-| Votes retenus          | Afficher « votre réponse »      | Jamais transmis            |
+| Donnée                 | Rôle                                                              | Portée                     |
+| ---------------------- | ----------------------------------------------------------------- | -------------------------- |
+| Identifiant de vote    | Éviter le double vote                                             | Envoyé avec chaque vote    |
+| Identifiant d'appareil | Limiter la cadence des messages                                   | Envoyé avec chaque message |
+| Préférence de thème    | Confort d'affichage                                               | Jamais transmise           |
+| Votes retenus          | Afficher « votre réponse », et savoir quoi proposer sur l'accueil | Jamais transmis            |
 
 Les deux identifiants sont **volontairement distincts**. Un identifiant unique
 permettrait de relier un message signé « je suis la maman de Léa en CP » au vote
