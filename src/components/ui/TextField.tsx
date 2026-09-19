@@ -76,10 +76,12 @@ export function TextField({
         maxLength={maxLength}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
-        // La correction automatique est laissée active sur les champs de texte
-        // libre : c'est une aide réelle pour un message écrit rapidement. Elle
-        // est désactivée sur les champs courts, où elle propose surtout des
-        // remplacements indésirables.
+        // La correction automatique suit `multiline`, et c'est une décision
+        // plutôt qu'un héritage : `autoCorrect` vaut `true` par défaut dans
+        // React Native, donc un champ d'une ligne — un sujet, une adresse —
+        // reçoit des remplacements indésirables si l'on ne dit rien. Elle reste
+        // active là où elle aide vraiment, sur le message qu'on écrit vite.
+        autoCorrect={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
         accessibilityLabel={label}
         style={[
