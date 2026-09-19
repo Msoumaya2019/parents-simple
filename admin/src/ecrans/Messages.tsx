@@ -33,6 +33,14 @@ import { libelleCategorieMessage, type MessageParent } from '../lib/types';
  * travers. Un bouton « supprimer » à côté d'une case « traité » est un geste
  * qu'on déclenche par erreur, et rien ne le rattrape.
  *
+ * ET IL LE DIT, SINON IL MENT. Refuser le bouton ne suffit pas : cocher
+ * « traité » ferme le traitement, et la promesse attache la suppression à ce
+ * moment précis. Un écran muet ferait donc croire le travail fini à qui vient
+ * de cocher — d'autant plus que la suppression était, avant cet écran, à portée
+ * de clic dans le Table Editor, où l'on marquait « traité ». L'aide de la carte
+ * et le message de confirmation le rappellent donc, à l'instant où le membre du
+ * bureau croit avoir terminé.
+ *
  * Il ne répond pas non plus : le bureau répond depuis sa propre boîte, à
  * l'adresse que le parent a laissée — quand il en a laissé une.
  *
@@ -63,7 +71,7 @@ export function Messages({ client }: { readonly client: Client }) {
       await marquerMessageTraite(client, message.id, traite);
       setSucces(
         traite
-          ? 'Message marqué comme traité.'
+          ? 'Message marqué comme traité. Il reste à le supprimer depuis le tableau de bord.'
           : 'Message remis dans la pile des messages à traiter.',
       );
       recharger();
@@ -77,7 +85,7 @@ export function Messages({ client }: { readonly client: Client }) {
   return (
     <Carte
       titre="Messages reçus"
-      aide="Ce que des parents ont écrit depuis l’application. Les messages non traités sont en tête."
+      aide="Ce que des parents ont écrit depuis l’application. Les messages non traités sont en tête. Un message traité reste à supprimer depuis le tableau de bord Supabase : la page de confidentialité promet sa suppression aux parents."
     >
       {messageErreur !== null && <Avis ton="erreur" texte={messageErreur} />}
       {succes !== null && <Avis ton="succes" texte={succes} />}

@@ -94,3 +94,22 @@ create policy messages_bureau_traitement
   on public.messages for update to authenticated
   using (public.est_membre_bureau())
   with check (public.est_membre_bureau());
+
+
+-- =============================================================================
+--  3. Le commentaire de la table, qui est un document lu par des gens
+-- =============================================================================
+--  `20260917120000_init.sql` pose sur cette table : « Lecture réservée au bureau
+--  (tableau de bord) ». C'était vrai, et ça ne l'est plus — la page
+--  d'administration lit désormais cette table, sans aucun accès au projet.
+--
+--  Ce commentaire n'est pas décoratif : il s'affiche dans le tableau de bord, à
+--  l'endroit même où quelqu'un vient chercher qui peut lire quoi. Le laisser tel
+--  quel ferait croire que rien n'a changé, et une phrase fausse sur les droits
+--  est plus dangereuse qu'une phrase absente : elle décourage la vérification.
+--
+--  La migration initiale étant déjà appliquée, on ne la corrige pas — on repose
+--  le commentaire ici, où il est rejouable.
+
+comment on table public.messages is
+  'Messages déposés par les parents. Lecture réservée au bureau : page d''administration (membres inscrits) ou tableau de bord. La clé publique ne lit rien.';

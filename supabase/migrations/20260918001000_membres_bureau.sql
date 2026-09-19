@@ -199,6 +199,17 @@ grant select, insert, update, delete on public.documents     to authenticated;
 --  réponses est un geste de bureau. `sondage_votes` et `messages` restent
 --  fermés, délibérément — ce sont des données de parents, pas du contenu
 --  publié. Le bureau les lit dans le tableau de bord.
+--
+--  DEPUIS LE 2026-09-19, LA DERNIÈRE PHRASE NE VAUT PLUS POUR `messages`
+--  --------------------------------------------------------------------
+--  Ce qui précède décrit l'état que CE fichier applique, et reste exact :
+--  `messages` y est retiré aux deux rôles. Mais la migration
+--  `20260919140000_messages_bureau.sql` accorde depuis au rôle `authenticated`
+--  la lecture et la modification de cette table, gardées par
+--  `est_membre_bureau()` : le bureau lit donc les messages depuis la page
+--  d'administration, sans aucun accès au projet Supabase. La clé publique, elle,
+--  ne lit toujours rien — c'est le seul point qui compte pour un parent.
+--  Ne pas lire la phrase ci-dessus comme l'état courant.
 
 
 -- =============================================================================

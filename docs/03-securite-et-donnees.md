@@ -104,6 +104,13 @@ confidentialité promet que les messages traités sont supprimés. La promesse e
 tenue, mais par une personne, depuis le tableau de bord, et non par une case à
 cocher qui pourrait être cliquée de travers.
 
+Refuser le bouton ne suffisait pourtant pas : cocher « traité » **ferme le
+traitement**, et c'est à ce moment que la promesse attache la suppression. L'aide
+de l'écran et le message de confirmation disent donc qu'il reste à la faire, et
+où. `tests/messages-traitement-et-suppression.test.ts` tient cette phrase — en
+lisant le fichier **commentaires retirés**, sans quoi le commentaire d'en-tête,
+qui nomme le tableau de bord, garderait le contrôle vert sur un écran muet.
+
 `messages` **reste dans la liste des tables fermées** de `npm run securite:api`,
 et les deux sondes — lecture et insertion avec la clé publique — continuent de
 l'y vérifier. Ce qui a changé, c'est la **cause** de la fermeture : elle tenait à
