@@ -139,9 +139,9 @@ export default function ConfidentialiteScreen(): React.JSX.Element {
 
           <AppText variant="label">Lorsque vous écrivez au bureau</AppText>
           <AppText variant="caption" color="muted" style={styles.espace}>
-            Le texte de votre message, la catégorie choisie, l’identifiant d’appareil, et —
-            seulement si vous le renseignez — l’adresse e-mail à laquelle répondre. Le message est
-            lisible par les membres du bureau de l’association, et par personne d’autre.
+            Le sujet et le texte de votre message, la catégorie choisie, l’identifiant d’appareil,
+            et — seulement si vous le renseignez — l’adresse e-mail à laquelle répondre. Le message
+            est lisible par les membres du bureau de l’association, et par personne d’autre.
           </AppText>
         </Card>
       </Section>
