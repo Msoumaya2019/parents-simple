@@ -376,6 +376,16 @@ le fichier, et falsifiée, elle restait verte sur un motif recopié dans un
 commentaire pendant que la fonction cherchait autre chose.
 `tests/accord-motif-objet-absent.test.mjs` tient les deux sens.
 
+> **Les deux contrôles tournent toujours, même si le premier échoue.** Les trois
+> flux qui interrogent la base les enchaînent dans un même `run:`. Or un `run:`
+> multiligne est exécuté par `bash -e`, qui s'arrête à la première commande en
+> échec : un `securite:api` rouge empêchait donc `verifier:requetes` de
+> s'exécuter, et un défaut de celui-ci restait invisible. Mesuré : la seconde
+> commande n'apparaissait pas dans le journal. Les trois flux agrègent désormais
+> les deux verdicts — les deux tournent, et le pas échoue si l'un des deux a
+> échoué. C'est la même règle que pour `npm run verify` : un contrôle que rien
+> n'exécute ne protège rien, et il le fait sans le dire.
+
 > **Ce qui reste non vérifié.** Les chemins de **succès** de `voter` et
 > `envoyer_message` ne sont éprouvés nulle part : `securite:api` ne teste que
 > leurs refus. Les éprouver demande un sondage ouvert et un message réellement

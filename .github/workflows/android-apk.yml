@@ -170,8 +170,15 @@ jobs:
         # compilation : on ne produit pas un APK pour une base ouverte, ni pour
         # une base qu'il ne sait pas interroger.
         run: |
-          npm run securite:api
-          npm run verifier:requetes
+          # Les deux contrôles doivent TOUJOURS tourner. Un `run:` multiligne est
+          # exécuté par `bash -e` : sans le `|| code=1`, l'échec du premier
+          # empêcherait le second de s'exécuter, et un défaut de `verifier:requetes`
+          # resterait invisible tant que `securite:api` est rouge. Mesuré : la
+          # seconde commande n'apparaissait pas dans le journal.
+          code=0
+          npm run securite:api || code=1
+          npm run verifier:requetes || code=1
+          exit "$code"
 
       - name: Vérifier le code avant de compiler
         # Un binaire qui compile n'est pas un binaire juste. Ces contrôles

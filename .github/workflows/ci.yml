@@ -183,8 +183,15 @@ jobs:
       - name: Éprouver la base réelle
         if: github.event_name != 'pull_request'
         run: |
-          npm run securite:api
-          npm run verifier:requetes
+          # Les deux contrôles doivent TOUJOURS tourner. Un `run:` multiligne est
+          # exécuté par `bash -e` : sans le `|| code=1`, l'échec du premier
+          # empêcherait le second de s'exécuter, et un défaut de `verifier:requetes`
+          # resterait invisible tant que `securite:api` est rouge. Mesuré : la
+          # seconde commande n'apparaissait pas dans le journal.
+          code=0
+          npm run securite:api || code=1
+          npm run verifier:requetes || code=1
+          exit "$code"
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
