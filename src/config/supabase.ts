@@ -48,6 +48,3 @@ export const supabase: SupabaseClient | null =
           },
         },
       });
-
-/** Vrai si l'application peut interroger la base. */
-export const supabaseDisponible: boolean = supabase !== null;

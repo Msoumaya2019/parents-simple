@@ -13,8 +13,14 @@
  * `chargement`, `affichee`, `echec`. Le troisième est le plus important et le
  * plus souvent oublié : une adresse morte — fichier retiré du stockage, lien
  * recopié de travers — laisserait sinon un cadre vide, que le lecteur interprète
- * comme une image lente plutôt que comme une image absente. L'icône barrée dit
- * la différence.
+ * comme une image lente plutôt que comme une image absente.
+ *
+ * Ce qui l'en distingue n'est pas un trait ajouté : Ionicons ne porte aucun
+ * glyphe d'image barrée — ses six glyphes d'image sont `image`, `image-outline`,
+ * `image-sharp`, `images`, `images-outline` et `images-sharp`. L'échec
+ * substitue donc à l'icône de la catégorie, seule chose que montre l'attente,
+ * le glyphe neutre `image-outline`, et l'estompe. Le lecteur ne voit plus la
+ * rubrique : il voit une image qui manque.
  *
  * PAS D'ANIMATION D'APPARITION
  * ----------------------------
@@ -36,7 +42,13 @@ interface ImageDistanteProps {
   readonly style?: StyleProp<ViewStyle>;
   /** Décrit l'image pour un lecteur d'écran. Omise, l'image est décorative. */
   readonly description?: string;
-  /** Icône du repli, quand l'image ne dit rien par elle-même. */
+  /**
+   * Icône du cadre d'ATTENTE, quand l'image ne dit rien par elle-même.
+   *
+   * L'échec ne la reprend pas : il montre toujours le glyphe neutre de l'image,
+   * estompé. Une icône de catégorie annoncerait une rubrique là où il n'y a
+   * plus rien — voir « Les trois états sont dessinés », en tête de ce fichier.
+   */
   readonly iconeRepli?: keyof typeof Ionicons.glyphMap;
   /**
    * Ton du cadre d'attente et du repli. L'appelant y passe le ton de sa

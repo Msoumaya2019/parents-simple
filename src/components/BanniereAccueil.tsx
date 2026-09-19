@@ -13,8 +13,8 @@
  * sans, et l'emplacement existe.
  *
  * Pour l'occuper : déposer un fichier dans `assets/` — par exemple
- * `assets/banniere-ecole.jpg` — puis remplacer `null` par le `require`
- * correspondant, deux lignes plus bas. Le dégradé qui protège le texte
+ * `assets/banniere-ecole.jpg` — puis remplacer le `null` de `PHOTO_BANNIERE`,
+ * plus bas, par le `require` correspondant. Le dégradé qui protège le texte
  * s'active alors automatiquement.
  *
  * POURQUOI LE TEXTE RESTE LISIBLE MÊME AVEC UNE PHOTO

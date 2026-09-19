@@ -29,8 +29,9 @@ export interface Annonce {
    * Deux formes sont acceptées, et `src/services/annonces.ts` les distingue :
    * une adresse complète (`https://…`), ou un chemin dans le compartiment
    * `annonces`. Le type ne peut pas exprimer cette différence — les deux sont
-   * des chaînes — d'où ce commentaire, qui est le seul endroit où elle est
-   * écrite.
+   * des chaînes — d'où ce commentaire. C'est `adresseImage`, dans
+   * `src/services/annonces.ts`, qui tranche entre les deux, et l'ordre de ses
+   * deux tests compte : une adresse complète d'abord, un chemin ensuite.
    */
   readonly imageUrl: string | null;
 }
