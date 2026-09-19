@@ -110,6 +110,57 @@ export function voteSansChoix(retenu: string | null): boolean {
 }
 
 /**
+ * Ce que la carte d'un sondage peut dire du décompte.
+ *
+ * POURQUOI CETTE RÈGLE EXISTE
+ * ---------------------------
+ * Le décompte vient de la base, et il a été lu AVANT que le vote soit déposé :
+ * l'écran ne recharge les sondages qu'après avoir écrit le vote. Au moment où
+ * la carte annonce « Votre réponse est enregistrée », le décompte qu'elle tient
+ * encore peut donc valoir zéro — et les deux moitiés de la phrase se suivent sur
+ * la même ligne :
+ *
+ *     Aucun vote pour le moment. Votre réponse est enregistrée.
+ *
+ * La première est fausse. Si l'appareil a voté, la base détient au moins ce
+ * vote : la mémoire locale n'est écrite qu'après une réponse de la base, et
+ * `true` comme `false` signifient tous deux qu'une ligne existe. Le parent lit
+ * exactement ce que toute cette mécanique cherche à lui éviter — « mon vote n'a
+ * pas été pris en compte ».
+ *
+ * LE CAS OÙ LE DÉCOMPTE RESTE À ZÉRO
+ * ----------------------------------
+ * Le bureau peut supprimer les votes d'un sondage depuis le tableau de bord, et
+ * `supabase/exemple-contenu.sql` le fait pour son sondage d'essai. L'appareil
+ * garde alors sa mémoire, et le décompte reste à zéro durablement.
+ *
+ * La carte ne peut pas distinguer les deux situations, et n'a donc aucune phrase
+ * vraie à écrire sur le décompte : annoncer « aucun vote » serait faux dans la
+ * première, annoncer « en cours de mise à jour » le serait dans la seconde. La
+ * seule chose qu'elle puisse affirmer est ce qu'elle sait de SON vote — c'est la
+ * mention, et elle suffit.
+ *
+ * CE QUE LA FONCTION NE FAIT PAS
+ * ------------------------------
+ * Elle ne rend pas la phrase entière : la mention qui suit appartient à
+ * `SondageCard`, qui la choisit selon que le choix est connu ou non. Deux règles
+ * distinctes, deux endroits — et la carte les assemble en écartant la partie
+ * vide, pour ne pas laisser d'espace en tête de ligne.
+ *
+ * @param total   Le décompte affiché, tel qu'il vient de la base.
+ * @param aVote   Vrai si l'appareil a voté sur ce sondage, choix connu ou non.
+ */
+export function phraseDecompte(total: number, aVote: boolean): string {
+  if (total > 0) {
+    return `${total} vote${total > 1 ? 's' : ''} exprimé${total > 1 ? 's' : ''}.`;
+  }
+
+  // Zéro vote connu ET un vote de l'appareil : le décompte est en retard, ou les
+  // votes ont été supprimés. On ne dit rien plutôt que de le contredire.
+  return aVote ? '' : 'Aucun vote pour le moment.';
+}
+
+/**
  * Enregistre le choix retenu pour un sondage.
  *
  * `retenu` peut valoir `CHOIX_INCONNU` : on retient alors qu'un vote existe,

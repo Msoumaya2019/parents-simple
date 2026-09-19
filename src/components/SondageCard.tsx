@@ -16,6 +16,20 @@
  * Une barre seule ne se lit pas au pixel près, et elle est invisible pour un
  * lecteur d'écran. Le nombre est donc affiché à côté, dans tous les cas.
  *
+ * LE DÉCOMPTE AFFICHÉ PEUT ÊTRE EN RETARD SUR LE VOTE
+ * --------------------------------------------------
+ * L'écran ne recharge les sondages qu'APRÈS avoir écrit le vote : au moment où
+ * cette carte annonce « Votre réponse est enregistrée », le décompte qu'elle
+ * tient encore date d'avant. Sur le premier vote d'un sondage, il vaut zéro, et
+ * la ligne se lisait :
+ *
+ *     Aucun vote pour le moment. Votre réponse est enregistrée.
+ *
+ * La première moitié est fausse, et c'est exactement ce que toute cette
+ * mécanique cherche à éviter au parent. La règle qui décide quoi dire du
+ * décompte vit dans `phraseDecompte` (`@/lib/votes-locaux`), avec les deux cas
+ * qu'elle ne peut pas distinguer.
+ *
  * UN VOTE PAR APPAREIL, ET IL NE SE REJOUE PAS
  * -------------------------------------------
  * La base ne remplace pas un vote déjà déposé : `on conflict do nothing` fait
@@ -32,7 +46,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText, Card, Pill } from '@/components/ui';
-import { voteSansChoix } from '@/lib/votes-locaux';
+import { phraseDecompte, voteSansChoix } from '@/lib/votes-locaux';
 import { useTheme } from '@/providers/theme-provider';
 import { partVotes, totalVotes } from '@/services/sondages';
 import type { ChoixSondage, Sondage } from '@/types/models';
@@ -67,8 +81,8 @@ export function SondageCard({
   const mentionVote = !aVote
     ? ''
     : choixConnu
-      ? ' Votre réponse est enregistrée.'
-      : ' Un vote a déjà été enregistré depuis cet appareil.';
+      ? 'Votre réponse est enregistrée.'
+      : 'Un vote a déjà été enregistré depuis cet appareil.';
 
   const voterPour = async (choixId: string): Promise<void> => {
     // Le même critère que la désactivation des lignes : une seule règle, pour
@@ -129,11 +143,12 @@ export function SondageCard({
         </AppText>
       ) : null}
 
+      {/* Une seule ligne, dont l'une des deux parties peut être vide : on
+          assemble celles qui ne le sont pas, plutôt que de laisser un espace en
+          tête. `phraseDecompte` explique pourquoi le décompte se tait quand un
+          vote est connu et qu'il vaut encore zéro. */}
       <AppText variant="caption" color="muted" style={{ marginTop: theme.spacing.md }}>
-        {total === 0
-          ? 'Aucun vote pour le moment.'
-          : `${total} vote${total > 1 ? 's' : ''} exprimé${total > 1 ? 's' : ''}.`}
-        {mentionVote}
+        {[phraseDecompte(total, aVote), mentionVote].filter((partie) => partie !== '').join(' ')}
       </AppText>
 
       {erreur !== null ? (

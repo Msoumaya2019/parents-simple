@@ -359,6 +359,11 @@ annoncerait une action qui n'existe plus.
 La carte **ne disparaît pas** pour autant : un parent peut vouloir relire les
 résultats. Elle cesse seulement de promettre ce qu'elle ne peut plus tenir.
 
+Le décompte, lui, peut apparaître un court instant après la confirmation :
+l'écran le relit à la base **après** avoir écrit le vote. Tant qu'il ne l'a pas
+relu, il ne dit rien du décompte — plutôt que d'annoncer « aucun vote » juste à
+côté de « votre réponse est enregistrée », ce qui se contredirait.
+
 Pour remettre un appareil à zéro — refaire l'essai, ou rendre le vote à
 quelqu'un — il faut **désinstaller et réinstaller** l'application : la mémoire
 locale part avec elle, et l'appareil redevient un nouvel électeur.

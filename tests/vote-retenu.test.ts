@@ -38,6 +38,12 @@
  * chaîne, sans quoi la marque d'un vote sans choix serait écartée en silence et
  * le parent pourrait appuyer indéfiniment.
  *
+ * La partie 4 tient la phrase du décompte. Le décompte est lu avant le vote et
+ * affiché après : sur le premier vote d'un sondage il vaut encore zéro, et la
+ * carte écrivait alors « Aucun vote pour le moment. Votre réponse est
+ * enregistrée. » — la première moitié étant fausse, puisque la mémoire locale
+ * ne s'écrit qu'après une réponse de la base.
+ *
  * CE QU'IL NE PROUVE PAS
  * ----------------------
  * Que la base réponde, ni qu'elle rende `false`. Il tient ce que l'application
@@ -54,7 +60,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
-import { CHOIX_INCONNU, voteARetenir, voteSansChoix } from '@/lib/votes-locaux';
+import { CHOIX_INCONNU, phraseDecompte, voteARetenir, voteSansChoix } from '@/lib/votes-locaux';
 
 const RACINE = process.cwd();
 const MODULE = join(RACINE, 'src', 'lib', 'votes-locaux.ts');
@@ -217,7 +223,17 @@ describe('La carte ne propose pas un vote que la base ignorerait', () => {
       /Un vote a déjà été enregistré depuis cet appareil\./,
       'le vote sans choix connu doit se dire aussi, sinon l’écran ne montre rien et se tait',
     );
-    assert.match(SOURCE_CARTE, /\{mentionVote\}/, 'la mention doit être employée sous le décompte');
+
+    // La mention doit être EMPLOYÉE, et non seulement calculée. Le contrôle
+    // portait sur la forme littérale `{mentionVote}` ; la carte assemble
+    // désormais deux parties dont l’une peut être vide, et la mention y figure
+    // sous une autre forme. On compte donc les occurrences du nom : une
+    // déclaration seule n’en produit qu’une.
+    const occurrences = SOURCE_CARTE.split('mentionVote').length - 1;
+    assert.ok(
+      occurrences >= 2,
+      `« mentionVote » n’apparaît que ${occurrences} fois : la mention est calculée mais jamais affichée`,
+    );
   });
 });
 
@@ -233,5 +249,82 @@ describe('Le lecteur de la mémoire locale garde la marque', () => {
       /FORME_UUID/,
       'un lecteur qui exigerait la forme d’un identifiant écarterait la marque en silence',
     );
+  });
+});
+
+describe('phraseDecompte — ce que la carte peut dire du décompte', () => {
+  it('dit le nombre quand il y a des voix, au singulier comme au pluriel', () => {
+    assert.equal(phraseDecompte(1, false), '1 vote exprimé.');
+    assert.equal(phraseDecompte(1, true), '1 vote exprimé.');
+    assert.equal(phraseDecompte(2, false), '2 votes exprimés.');
+    assert.equal(phraseDecompte(17, true), '17 votes exprimés.');
+  });
+
+  it('dit qu’il n’y a aucun vote quand l’appareil n’a pas voté', () => {
+    assert.equal(phraseDecompte(0, false), 'Aucun vote pour le moment.');
+  });
+
+  it('se tait quand un vote est connu et que le décompte vaut encore zéro', () => {
+    assert.equal(
+      phraseDecompte(0, true),
+      '',
+      'la carte ne peut pas affirmer « aucun vote » : elle sait qu’il y en a au moins un',
+    );
+  });
+
+  it('n’affirme jamais zéro vote à côté d’un vote connu', () => {
+    // L'invariant, vérifié sur toutes les entrées possibles plutôt que sur le
+    // seul cas qu'on avait en tête.
+    for (const total of [0, 1, 2, 3, 10, 999]) {
+      for (const aVote of [true, false]) {
+        const phrase = phraseDecompte(total, aVote);
+
+        if (aVote) {
+          assert.ok(
+            !phrase.includes('Aucun vote'),
+            `« ${phrase} » (total=${total}) affirme zéro vote alors que l’appareil en connaît un`,
+          );
+        }
+        if (total > 0) {
+          assert.ok(
+            phrase.startsWith(String(total)),
+            `« ${phrase} » n’annonce pas le décompte ${total}`,
+          );
+        }
+      }
+    }
+  });
+
+  it('n’écrit jamais « 1 votes »', () => {
+    assert.ok(!phraseDecompte(1, false).includes('votes'));
+  });
+});
+
+describe('La carte emploie la règle du décompte', () => {
+  it('n’écrit plus la phrase du décompte en dur', () => {
+    assert.doesNotMatch(
+      SOURCE_CARTE,
+      /Aucun vote pour le moment\./,
+      'la phrase doit venir de la règle, sinon les deux peuvent diverger',
+    );
+    assert.ok(
+      !SOURCE_CARTE.includes('exprimé'),
+      'le mot appartient à la règle : la carte ne le compose plus elle-même',
+    );
+  });
+
+  it('assemble les deux parties en écartant celle qui est vide', () => {
+    assert.match(SOURCE_CARTE, /phraseDecompte\(\s*total\s*,\s*aVote\s*\)/);
+    assert.match(
+      SOURCE_CARTE,
+      /filter\(\(partie\) => partie !== ''\)/,
+      'sans le filtre, une partie vide laisserait un espace en tête de ligne',
+    );
+    assert.match(SOURCE_CARTE, /join\(' '\)/);
+  });
+
+  it('donne à la mention le même texte qu’avant, sans son espace de tête', () => {
+    assert.match(SOURCE_CARTE, /'Votre réponse est enregistrée\.'/);
+    assert.match(SOURCE_CARTE, /'Un vote a déjà été enregistré depuis cet appareil\.'/);
   });
 });
