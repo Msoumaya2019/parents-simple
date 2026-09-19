@@ -305,8 +305,13 @@ jobs:
             echo "::warning::APK signé avec la clé de débogage : utilisable pour essayer, impossible à mettre à jour ensuite."
           fi
 
+      # v7, et non v4 : le moteur est déclaré dans le manifeste de l'action
+      # (`runs.using`). v4 tourne sous Node 20, que GitHub abandonne, et v5 ne
+      # fait que SUPPORTER Node 24 — il tourne encore sous Node 20 par défaut.
+      # Seules v6 et au-delà passent à Node 24. Le jour où le moteur forcé
+      # disparaît, un v4 ou un v5 fait échouer la publication du paquet.
       - name: Publier l'APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-apk
           path: ${{ steps.apk.outputs.chemin }}
